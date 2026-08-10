@@ -28,8 +28,8 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Base PyTorch full 6018-frame evaluation | Completed | Original checkpoint baseline recorded below. |
 | Base TensorRT FP32 dynamic full 6018-frame evaluation | Completed, not accepted as final runtime | Accuracy and latency are recorded below. Forty-two shape-update spikes above 1 s inflated the mean; fixed-shape rerun supersedes its timing. |
 | Base TensorRT FP32 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite metrics and no second-scale latency spikes. |
-| Base TensorRT FP16 fixed-1150 full evaluation | Running | Running independently on GPU 7 with the same fixed-input and 6018-frame protocol. |
-| Base TensorRT INT8 fixed-1150 full evaluation | Running, preliminary calibration | Started on GPU 6 after FP32 passed; its tag explicitly records the current 8-sample training calibration. |
+| Base TensorRT FP16 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite planning and latency summaries. |
+| Base TensorRT INT8 fixed-1150 full evaluation | Completed, preliminary calibration | All 6018 frames completed; its evidence path explicitly records the current 8-sample training calibration. |
 | CARLA closed-loop evaluation | Not completed | Existing CARLA assets are partial/reused; the full download was explicitly paused. |
 
 ## Verified results
@@ -84,14 +84,39 @@ The mean includes 42 enqueue spikes above 1 s, with maxima around 11.7 s. The or
 
 The fixed-input run preserved the dynamic run's planning output but removed all 42 second-scale shape-reconfiguration spikes. Maximum enqueue was `209.019 ms` and maximum end-to-end was `625.901 ms`. Evidence is retained under `UniAD/evidence/uniad_base_e2e/fp32_fixed1150_full6018`.
 
+### Base TensorRT fixed-1150 precision comparison
+
+| Metric | FP32 | FP16 | INT8(EQ)+FP16, calib8 |
+| --- | ---: | ---: | ---: |
+| planning avg. L2 | 2.559613 m | 2.408856 m | 2.380163 m |
+| planning avg. point collision | 0.254791% | 0.210480% | 1.082863% |
+| planning avg. box collision | 1.165947% | 1.024704% | 3.162734% |
+| planning vs PyTorch output avg. L2 | 3.144457 m | 2.966040 m | 2.722219 m |
+| enqueue mean / p50 / p99 | 185.945 / 185.443 / 191.793 ms | 108.196 / 107.601 / 115.428 ms | 97.302 / 96.794 / 103.337 ms |
+| inference-call mean / p50 / p99 | 215.580 / 214.395 / 233.181 ms | 137.403 / 135.917 / 162.725 ms | 126.623 / 125.679 / 143.087 ms |
+| end-to-end mean / p50 / p99 | 368.480 / 364.289 / 440.199 ms | 289.559 / 284.672 / 379.506 ms | 276.915 / 273.425 / 349.483 ms |
+
+The full-validation enqueue trend is `FP32 > FP16 > INT8`, matching NVIDIA's qualitative example. Relative to FP32, FP16 is `1.72x` faster and INT8 is `1.91x` faster; INT8 is `1.11x` faster than FP16. Accuracy does not reproduce NVIDIA's tiny-model example: the base PyTorch checkpoint has planning L2 `0.913059 m`, but even the FP32 TensorRT export has `2.559613 m`. Because this delta already exists in FP32, it is an export/runtime fidelity issue rather than an INT8 calibration-only issue. INT8 additionally raises box collision to `3.162734%`, and the 8-sample calibration remains preliminary.
+
+The current NVIDIA-style C++ runner reconstructs planning and decoded boxes but only emits a full planning evaluation. It does not reconstruct the Python dataset's complete detection/tracking/map result bundle, so no TensorRT detection/tracking score is claimed here.
+
 ## Resume procedure
 
-1. Confirm GPU 6 is still reserved and inspect the FP32 process/log before starting anything else.
-2. Finish FP32 and verify its summary, frame count, finite trajectory count, and mean/p50/p99 files.
-3. Run FP16 and INT8 with the same dataset ordering, warmup, synchronization, and end-to-end definition.
-4. Compare planning output against PyTorch and separately state which full detection/tracking/map metrics the engine runner actually reconstructs.
-5. Increase/rebuild base INT8 calibration if full-validation degradation is excessive; do not silently compare an 8-sample calibration against a larger protocol.
-6. Update this document and push one commit after each completed major round.
+1. Trace the FP32 planning delta against PyTorch before attributing accuracy loss to reduced precision; prioritize export rewrites, plugin parity, temporal-state decoding, and result reconstruction.
+2. Add TensorRT result-bundle reconstruction if full detection/tracking/map scores are required from the engine path.
+3. Replace the in-memory monolithic calibration collector with a bounded-memory streaming or sharded protocol before expanding UniAD-base calibration; one 8-sample NPZ is already about 1.2 GiB.
+4. Rebuild and rerun INT8 after the larger representative calibration is available; retain the current `calib8` lineage for comparison.
+5. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 005 - 2026-08-09T20:58:49-07:00
+
+- Completed FP16 and preliminary 8-sample-calibrated INT8 fixed-1150 evaluations over all 6018 frames.
+- Verified exactly 6018 unique, strictly ordered frame records for each precision, finite planning/latency JSON, and no missing frames.
+- Confirmed the full enqueue trend `FP32 185.945 ms > FP16 108.196 ms > INT8 97.302 ms`.
+- Recorded the unresolved FP32 export/runtime accuracy gap and the additional INT8 collision degradation instead of treating latency success as accuracy reproduction.
+- Retained source-only FP16 and INT8 evidence under `UniAD/evidence/uniad_base_e2e`; ONNX, engine, checkpoint, raw predictions, and calibration tensors remain excluded.
 
 ---
 

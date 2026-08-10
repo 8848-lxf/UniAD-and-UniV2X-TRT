@@ -1,0 +1,49 @@
+{
+  "avg_box_collision_percent": 1.0247036667774454,
+  "avg_l2_m": 2.4088556566639285,
+  "avg_point_collision_percent": 0.21047967209482663,
+  "bev_dimension": [
+    200,
+    200
+  ],
+  "box_collision_by_timestep_percent": [
+    0.5649717514124294,
+    0.3988035892323031,
+    0.5982053838484547,
+    1.1964107676969093,
+    1.6616816218012629,
+    1.7281488866733135
+  ],
+  "frames": 6018,
+  "l2_by_timestep_m": [
+    0.7992761078204539,
+    1.5084947924876442,
+    2.1691105035908214,
+    2.7339159391822982,
+    3.341952717891924,
+    3.900383879010429
+  ],
+  "metric_source": "UniAD PlanningMetric",
+  "planning_reference_avg_l2_m": 2.9660398960113525,
+  "planning_reference_coordinate_mse": 7.920995712280273,
+  "planning_reference_frames": 6018,
+  "point_collision_by_timestep_percent": [
+    0.0,
+    0.0,
+    0.1163177135260884,
+    0.16616816218012628,
+    0.3157195081422399,
+    0.6646726487205051
+  ],
+  "schema_version": 1,
+  "x_bound": [
+    -50.0,
+    50.0,
+    0.5
+  ],
+  "y_bound": [
+    -50.0,
+    50.0,
+    0.5
+  ]
+}
