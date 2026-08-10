@@ -1,0 +1,65 @@
+{
+  "input": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/quantization_train10pct_fixed/infrastructure_int8_qdq.onnx",
+  "input_sha256": "2b741e9f64b43443905582457f247af05bd9c8dd6d4b6dde7b21e014a25db692",
+  "output": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/onnx/infrastructure_int8_qdq_numerically_stable.onnx",
+  "output_sha256": "3fab9e1c94bbc6d9dd95f2fd91faf9f651677901aebf157c7b75165a1223f3e0",
+  "external_data": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/onnx/infrastructure_int8_qdq_numerically_stable.onnx.data",
+  "rewrite": "log(a / b) -> log(a) - log(b)",
+  "requested_nodes": [
+    "Log_16021"
+  ],
+  "pattern_count": 1,
+  "patterns": [
+    {
+      "original_log": "Log_16021",
+      "original_div": "Div_16020",
+      "output": "lane_reference_QuantizeLinear_Input",
+      "numerator": "onnx::Div_18596",
+      "denominator": "onnx::Div_18603"
+    }
+  ],
+  "replaced_constants": [
+    {
+      "node": "Constant_16010",
+      "dtype": "float64",
+      "old_value": 1e-05,
+      "new_value": 0.0009765625
+    },
+    {
+      "node": "Constant_16016",
+      "dtype": "float64",
+      "old_value": 1e-05,
+      "new_value": 0.0009765625
+    },
+    {
+      "node": "Constant_26916",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_27425",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_27934",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_28443",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_28952",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    }
+  ]
+}

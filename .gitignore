@@ -1,0 +1,49 @@
+# Model and deployment binaries
+*.engine
+*.plan
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.onnx.data
+*.so
+*.so.*
+*.a
+*.o
+*.bin
+*.cache
+
+# Datasets, calibration tensors, and generated results
+data/
+datasets/
+checkpoints/
+artifacts/
+work_dirs*/
+outputs/
+logs/
+*.npy
+*.npz
+*.pkl
+*.pickle
+
+# Build and local environment state
+build/
+build_*/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+.conda/
+.venv/
+__pycache__/
+*.py[cod]
+*.backup
+*.bak
+*~
+.pytest_cache/
+
+# Local editor and OS files
+.idea/
+.vscode/
+.DS_Store

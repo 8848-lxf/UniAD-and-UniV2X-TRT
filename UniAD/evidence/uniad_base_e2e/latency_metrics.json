@@ -1,0 +1,58 @@
+{
+  "definitions": {
+    "end_to_end": "Per-frame loop wall time including dataloader wait, model forward, planning metric update and result postprocessing",
+    "model_forward": "CUDA-synchronized wall time around model(return_loss=False)"
+  },
+  "end_to_end": {
+    "fps_from_mean": 1.7055342191849217,
+    "max_ms": 1583.8596820831299,
+    "mean_ms": 586.3265531417494,
+    "min_ms": 411.00674867630005,
+    "p50_ms": 545.3324653208256,
+    "p95_ms": 840.863449499011,
+    "samples": 6009
+  },
+  "frames_total": 6019,
+  "model_forward": {
+    "fps_from_mean": 1.9309965190441392,
+    "max_ms": 1524.199003353715,
+    "mean_ms": 517.8673240151718,
+    "min_ms": 378.5091955214739,
+    "p50_ms": 470.27681954205036,
+    "p95_ms": 769.1411700099691,
+    "samples": 6009
+  },
+  "planning": {
+    "L2": [
+      0.3355475664138794,
+      0.5067326426506042,
+      0.7184670567512512,
+      0.9810320734977722,
+      1.2889435291290283,
+      1.6476322412490845
+    ],
+    "avg_box_collision_percent": 0.06645622197538614,
+    "avg_l2_m": 0.9130591849486033,
+    "avg_point_collision_percent": 0.0,
+    "obj_box_col": [
+      0.0004984216648153961,
+      0.0006645622197538614,
+      0.0004984216648153961,
+      0.0006645622197538614,
+      0.0006645622197538614,
+      0.0009968433296307921
+    ],
+    "obj_col": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "rank": 0,
+  "schema_version": 1,
+  "warmup_frames_excluded": 10,
+  "world_size": 1
+}

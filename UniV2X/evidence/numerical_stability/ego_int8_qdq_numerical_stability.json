@@ -1,0 +1,85 @@
+{
+  "input": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/quantization_train10pct_fixed/ego_int8_qdq.onnx",
+  "input_sha256": "1e47c94392812a2d53497dc01acae15866ff890a9de0208c35c50c0c0ef94a98",
+  "output": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/onnx/ego_int8_qdq_numerically_stable.onnx",
+  "output_sha256": "95c8a5ff4c1eda7c7518f2a5421f1292dad972fe963a6083ace1d2027e2d63e9",
+  "external_data": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/onnx/ego_int8_qdq_numerically_stable.onnx.data",
+  "rewrite": "log(a / b) -> log(a) - log(b)",
+  "requested_nodes": [
+    "Log_16400",
+    "Log_16532"
+  ],
+  "pattern_count": 2,
+  "patterns": [
+    {
+      "original_log": "Log_16532",
+      "original_div": "Div_16531",
+      "output": "onnx::Slice_19236",
+      "numerator": "onnx::Sub_19232",
+      "denominator": "onnx::Div_19234"
+    },
+    {
+      "original_log": "Log_16400",
+      "original_div": "Div_16399",
+      "output": "reference.43",
+      "numerator": "onnx::Div_19095",
+      "denominator": "onnx::Div_19102"
+    }
+  ],
+  "replaced_constants": [
+    {
+      "node": "Constant_16389",
+      "dtype": "float64",
+      "old_value": 1e-05,
+      "new_value": 0.0009765625
+    },
+    {
+      "node": "Constant_16395",
+      "dtype": "float64",
+      "old_value": 1e-05,
+      "new_value": 0.0009765625
+    },
+    {
+      "node": "Constant_16524",
+      "dtype": "float64",
+      "old_value": 1e-05,
+      "new_value": 0.0009765625
+    },
+    {
+      "node": "Constant_16525",
+      "dtype": "float64",
+      "old_value": 0.99999,
+      "new_value": 0.9990234375
+    },
+    {
+      "node": "Constant_27593",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_28102",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_28611",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_29120",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    },
+    {
+      "node": "Constant_29629",
+      "dtype": "float32",
+      "old_value": -Infinity,
+      "new_value": -10000.0
+    }
+  ]
+}

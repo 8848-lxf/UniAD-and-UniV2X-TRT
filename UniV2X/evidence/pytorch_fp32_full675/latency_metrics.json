@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "framework": "PyTorch",
+  "precision": "FP32",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "dataset_frames": 675,
+  "warmup_frames_excluded": 20,
+  "checkpoint_epoch": 10,
+  "definitions": {
+    "forward": "CUDA-synchronized wall time around cooperative MultiAgent forward",
+    "end_to_end": "Dataloader wait, forward, occupancy/planning metric update, and result postprocessing"
+  },
+  "forward": {
+    "samples": 655,
+    "mean_ms": 805.5952727396525,
+    "p50_ms": 760.8248442411423,
+    "p99_ms": 1290.9370543807756,
+    "min_ms": 608.3183754235506,
+    "max_ms": 1811.0886383801699,
+    "fps_from_mean": 1.2413181082843494
+  },
+  "end_to_end": {
+    "samples": 655,
+    "mean_ms": 2330.758829923873,
+    "p50_ms": 925.1714441925287,
+    "p99_ms": 8927.111897729337,
+    "min_ms": 628.5629849880934,
+    "max_ms": 10130.772594362497,
+    "fps_from_mean": 0.429044818863847
+  }
+}

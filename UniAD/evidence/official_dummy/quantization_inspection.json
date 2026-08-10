@@ -1,0 +1,431 @@
+{
+  "calibration": {
+    "dtypes": {
+      "command": "float32",
+      "img": "float32",
+      "img_metas_can_bus": "float32",
+      "img_metas_lidar2img": "float32",
+      "l2g_r_mat": "float32",
+      "l2g_t": "float32",
+      "max_obj_id": "int32",
+      "prev_bev": "float32",
+      "prev_l2g_r_mat": "float32",
+      "prev_l2g_t": "float32",
+      "prev_timestamp": "float32",
+      "prev_track_intances0": "float32",
+      "prev_track_intances1": "float32",
+      "prev_track_intances11": "float32",
+      "prev_track_intances12": "int32",
+      "prev_track_intances13": "float32",
+      "prev_track_intances3": "int32",
+      "prev_track_intances4": "int32",
+      "prev_track_intances5": "int32",
+      "prev_track_intances6": "float32",
+      "prev_track_intances8": "float32",
+      "prev_track_intances9": "float32",
+      "timestamp": "float32",
+      "use_prev_bev": "int32"
+    },
+    "path": "artifacts/smoke_base_hybrid/calibration/calib_data_shape0_901.npz",
+    "samples": 1,
+    "shapes": {
+      "command": [
+        1
+      ],
+      "img": [
+        1,
+        6,
+        3,
+        256,
+        416
+      ],
+      "img_metas_can_bus": [
+        18
+      ],
+      "img_metas_lidar2img": [
+        1,
+        6,
+        4,
+        4
+      ],
+      "l2g_r_mat": [
+        1,
+        3,
+        3
+      ],
+      "l2g_t": [
+        1,
+        3
+      ],
+      "max_obj_id": [
+        1
+      ],
+      "prev_bev": [
+        2500,
+        1,
+        256
+      ],
+      "prev_l2g_r_mat": [
+        1,
+        3,
+        3
+      ],
+      "prev_l2g_t": [
+        1,
+        3
+      ],
+      "prev_timestamp": [
+        1
+      ],
+      "prev_track_intances0": [
+        901,
+        512
+      ],
+      "prev_track_intances1": [
+        901,
+        3
+      ],
+      "prev_track_intances11": [
+        901,
+        4,
+        256
+      ],
+      "prev_track_intances12": [
+        901,
+        4
+      ],
+      "prev_track_intances13": [
+        901
+      ],
+      "prev_track_intances3": [
+        901
+      ],
+      "prev_track_intances4": [
+        901
+      ],
+      "prev_track_intances5": [
+        901
+      ],
+      "prev_track_intances6": [
+        901
+      ],
+      "prev_track_intances8": [
+        901
+      ],
+      "prev_track_intances9": [
+        901,
+        10
+      ],
+      "timestamp": [
+        1
+      ],
+      "use_prev_bev": [
+        1
+      ]
+    }
+  },
+  "checks": {
+    "deployment_input_contract": "pass",
+    "explicit_dequantize_nodes": "pass",
+    "finite_positive_scales": "pass",
+    "int8_initializers": "pass",
+    "matmul_weight_exclusion": "pass",
+    "onnx_checker": "pass_with_expected_trt_plugins_assigned_temporary_domain"
+  },
+  "fp_onnx": {
+    "domains": {
+      "ai.onnx": 7485,
+      "trt.plugins": 29
+    },
+    "expected_trt_plugins": [
+      "InverseTRT",
+      "MultiScaleDeformableAttnTRT",
+      "RotateTRT"
+    ],
+    "initializers_by_type": {
+      "BOOL": 1,
+      "FLOAT": 1365,
+      "INT32": 8,
+      "INT64": 153
+    },
+    "inputs": [
+      "prev_track_intances0",
+      "prev_track_intances1",
+      "prev_track_intances3",
+      "prev_track_intances4",
+      "prev_track_intances5",
+      "prev_track_intances6",
+      "prev_track_intances8",
+      "prev_track_intances9",
+      "prev_track_intances11",
+      "prev_track_intances12",
+      "prev_track_intances13",
+      "prev_timestamp",
+      "prev_l2g_r_mat",
+      "prev_l2g_t",
+      "prev_bev",
+      "timestamp",
+      "l2g_r_mat",
+      "l2g_t",
+      "img",
+      "img_metas_can_bus",
+      "img_metas_lidar2img",
+      "command",
+      "use_prev_bev",
+      "max_obj_id"
+    ],
+    "ir_version": 10,
+    "matmul_dq_activation_input_count": 0,
+    "matmul_int8_weight_input_count": 0,
+    "node_count": 7514,
+    "operators": {
+      "Add": 1143,
+      "And": 16,
+      "ArgMax": 2,
+      "Atan": 3,
+      "Cast": 140,
+      "Clip": 73,
+      "Concat": 271,
+      "ConstantOfShape": 59,
+      "Conv": 104,
+      "Cos": 21,
+      "CumSum": 3,
+      "Div": 264,
+      "Einsum": 6,
+      "Equal": 108,
+      "Exp": 8,
+      "Expand": 335,
+      "Flatten": 5,
+      "Gather": 388,
+      "Gemm": 53,
+      "Greater": 16,
+      "GreaterOrEqual": 10,
+      "Identity": 3,
+      "InverseTRT": 1,
+      "Less": 13,
+      "LessOrEqual": 2,
+      "Log": 24,
+      "MatMul": 504,
+      "Max": 1,
+      "MaxPool": 8,
+      "Min": 2,
+      "Mod": 2,
+      "Mul": 333,
+      "MultiScaleDeformableAttnTRT": 27,
+      "Neg": 3,
+      "NonZero": 25,
+      "Not": 23,
+      "Pow": 133,
+      "RandomUniformLike": 1,
+      "Range": 97,
+      "ReduceMax": 4,
+      "ReduceMean": 265,
+      "ReduceProd": 3,
+      "ReduceSum": 14,
+      "Relu": 219,
+      "Reshape": 608,
+      "Resize": 15,
+      "RotateTRT": 1,
+      "ScatterND": 82,
+      "Shape": 356,
+      "Sigmoid": 35,
+      "Sign": 2,
+      "Sin": 21,
+      "Slice": 305,
+      "Softmax": 42,
+      "Split": 3,
+      "Sqrt": 132,
+      "Squeeze": 23,
+      "Sub": 236,
+      "Tanh": 1,
+      "Tile": 11,
+      "TopK": 2,
+      "Transpose": 298,
+      "Unsqueeze": 509,
+      "Where": 97
+    },
+    "opsets": {
+      "ai.onnx": 16,
+      "trt.plugins": 1
+    },
+    "outputs": [
+      "prev_track_intances0_out",
+      "prev_track_intances1_out",
+      "prev_track_intances3_out",
+      "prev_track_intances4_out",
+      "prev_track_intances5_out",
+      "prev_track_intances6_out",
+      "prev_track_intances8_out",
+      "prev_track_intances9_out",
+      "prev_track_intances11_out",
+      "prev_track_intances12_out",
+      "prev_track_intances13_out",
+      "prev_timestamp_out",
+      "prev_l2g_t_out",
+      "prev_l2g_r_mat_out",
+      "bev_embed",
+      "bboxes_dict_bboxes",
+      "scores",
+      "labels",
+      "bbox_index",
+      "obj_idxes",
+      "max_obj_id_out",
+      "seg_out",
+      "outs_planning"
+    ],
+    "path": "artifacts/official_dummy/onnx/uniad_tiny_dummy_simp.onnx",
+    "quantization_scale_count": 0,
+    "quantization_scales_finite": true,
+    "quantization_scales_positive": true
+  },
+  "quantized_onnx": {
+    "domains": {
+      "ai.onnx": 8382,
+      "trt.plugins": 29
+    },
+    "expected_trt_plugins": [
+      "InverseTRT",
+      "MultiScaleDeformableAttnTRT",
+      "RotateTRT"
+    ],
+    "initializers_by_type": {
+      "BOOL": 12,
+      "FLOAT": 2542,
+      "INT32": 22,
+      "INT64": 3347,
+      "INT8": 672
+    },
+    "inputs": [
+      "prev_track_intances0",
+      "prev_track_intances1",
+      "prev_track_intances3",
+      "prev_track_intances4",
+      "prev_track_intances5",
+      "prev_track_intances6",
+      "prev_track_intances8",
+      "prev_track_intances9",
+      "prev_track_intances11",
+      "prev_track_intances12",
+      "prev_track_intances13",
+      "prev_timestamp",
+      "prev_l2g_r_mat",
+      "prev_l2g_t",
+      "prev_bev",
+      "timestamp",
+      "l2g_r_mat",
+      "l2g_t",
+      "img",
+      "img_metas_can_bus",
+      "img_metas_lidar2img",
+      "command",
+      "use_prev_bev",
+      "max_obj_id"
+    ],
+    "ir_version": 9,
+    "matmul_dq_activation_input_count": 70,
+    "matmul_int8_weight_input_count": 0,
+    "node_count": 8411,
+    "operators": {
+      "Add": 1143,
+      "And": 16,
+      "ArgMax": 2,
+      "Atan": 3,
+      "Cast": 140,
+      "Clip": 73,
+      "Concat": 271,
+      "ConstantOfShape": 59,
+      "Conv": 104,
+      "Cos": 21,
+      "CumSum": 3,
+      "DequantizeLinear": 523,
+      "Div": 264,
+      "Einsum": 6,
+      "Equal": 108,
+      "Exp": 8,
+      "Expand": 335,
+      "Flatten": 5,
+      "Gather": 388,
+      "Gemm": 53,
+      "Greater": 16,
+      "GreaterOrEqual": 10,
+      "Identity": 3,
+      "InverseTRT": 1,
+      "Less": 13,
+      "LessOrEqual": 2,
+      "Log": 24,
+      "MatMul": 504,
+      "Max": 1,
+      "MaxPool": 8,
+      "Min": 2,
+      "Mod": 2,
+      "Mul": 333,
+      "MultiScaleDeformableAttnTRT": 27,
+      "Neg": 3,
+      "NonZero": 25,
+      "Not": 23,
+      "Pow": 133,
+      "QuantizeLinear": 374,
+      "RandomUniformLike": 1,
+      "Range": 97,
+      "ReduceMax": 4,
+      "ReduceMean": 265,
+      "ReduceProd": 3,
+      "ReduceSum": 14,
+      "Relu": 219,
+      "Reshape": 608,
+      "Resize": 15,
+      "RotateTRT": 1,
+      "ScatterND": 82,
+      "Shape": 356,
+      "Sigmoid": 35,
+      "Sign": 2,
+      "Sin": 21,
+      "Slice": 305,
+      "Softmax": 42,
+      "Split": 3,
+      "Sqrt": 132,
+      "Squeeze": 23,
+      "Sub": 236,
+      "Tanh": 1,
+      "Tile": 11,
+      "TopK": 2,
+      "Transpose": 298,
+      "Unsqueeze": 509,
+      "Where": 97
+    },
+    "opsets": {
+      "ai.onnx": 16,
+      "trt.plugins": 1
+    },
+    "outputs": [
+      "prev_track_intances0_out",
+      "prev_track_intances1_out",
+      "prev_track_intances3_out",
+      "prev_track_intances4_out",
+      "prev_track_intances5_out",
+      "prev_track_intances6_out",
+      "prev_track_intances8_out",
+      "prev_track_intances9_out",
+      "prev_track_intances11_out",
+      "prev_track_intances12_out",
+      "prev_track_intances13_out",
+      "prev_timestamp_out",
+      "prev_l2g_t_out",
+      "prev_l2g_r_mat_out",
+      "bev_embed",
+      "bboxes_dict_bboxes",
+      "scores",
+      "labels",
+      "bbox_index",
+      "obj_idxes",
+      "max_obj_id_out",
+      "seg_out",
+      "outs_planning"
+    ],
+    "path": "artifacts/official_dummy/onnx/uniad_tiny_dummy_int8_eq_dq_only.sanitized.onnx",
+    "quantization_scale_count": 49199,
+    "quantization_scales_finite": true,
+    "quantization_scales_positive": true
+  },
+  "schema_version": 1
+}

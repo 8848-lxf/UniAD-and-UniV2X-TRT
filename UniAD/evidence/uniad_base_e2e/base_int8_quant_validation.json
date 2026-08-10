@@ -1,0 +1,437 @@
+{
+  "calibration": {
+    "dtypes": {
+      "command": "float32",
+      "img": "float32",
+      "img_metas_can_bus": "float32",
+      "img_metas_lidar2img": "float32",
+      "l2g_r_mat": "float32",
+      "l2g_t": "float32",
+      "max_obj_id": "int32",
+      "prev_bev": "float32",
+      "prev_l2g_r_mat": "float32",
+      "prev_l2g_t": "float32",
+      "prev_timestamp": "float32",
+      "prev_track_intances0": "float32",
+      "prev_track_intances1": "float32",
+      "prev_track_intances11": "float32",
+      "prev_track_intances12": "int32",
+      "prev_track_intances13": "float32",
+      "prev_track_intances3": "int32",
+      "prev_track_intances4": "int32",
+      "prev_track_intances5": "int32",
+      "prev_track_intances6": "float32",
+      "prev_track_intances8": "float32",
+      "prev_track_intances9": "float32",
+      "timestamp": "float32",
+      "use_prev_bev": "int32"
+    },
+    "path": "DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/uniad_base_e2e/calibration/train_calib_shape0_901.npz",
+    "samples": 8,
+    "shapes": {
+      "command": [
+        8
+      ],
+      "img": [
+        8,
+        6,
+        3,
+        928,
+        1600
+      ],
+      "img_metas_can_bus": [
+        144
+      ],
+      "img_metas_lidar2img": [
+        8,
+        6,
+        4,
+        4
+      ],
+      "l2g_r_mat": [
+        8,
+        3,
+        3
+      ],
+      "l2g_t": [
+        8,
+        3
+      ],
+      "max_obj_id": [
+        8
+      ],
+      "prev_bev": [
+        320000,
+        1,
+        256
+      ],
+      "prev_l2g_r_mat": [
+        8,
+        3,
+        3
+      ],
+      "prev_l2g_t": [
+        8,
+        3
+      ],
+      "prev_timestamp": [
+        8
+      ],
+      "prev_track_intances0": [
+        7208,
+        512
+      ],
+      "prev_track_intances1": [
+        7208,
+        3
+      ],
+      "prev_track_intances11": [
+        7208,
+        4,
+        256
+      ],
+      "prev_track_intances12": [
+        7208,
+        4
+      ],
+      "prev_track_intances13": [
+        7208
+      ],
+      "prev_track_intances3": [
+        7208
+      ],
+      "prev_track_intances4": [
+        7208
+      ],
+      "prev_track_intances5": [
+        7208
+      ],
+      "prev_track_intances6": [
+        7208
+      ],
+      "prev_track_intances8": [
+        7208
+      ],
+      "prev_track_intances9": [
+        7208,
+        10
+      ],
+      "timestamp": [
+        8
+      ],
+      "use_prev_bev": [
+        8
+      ]
+    }
+  },
+  "checks": {
+    "deployment_input_contract": "pass",
+    "explicit_dequantize_nodes": "pass",
+    "finite_positive_scales": "pass",
+    "int8_initializers": "pass",
+    "matmul_weight_exclusion": "pass",
+    "onnx_checker": "pass_with_expected_trt_plugins_assigned_temporary_domain"
+  },
+  "fp_onnx": {
+    "domains": {
+      "ai.onnx": 26945
+    },
+    "expected_trt_plugins": [
+      "InverseTRT",
+      "ModulatedDeformableConv2dTRT",
+      "MultiScaleDeformableAttnTRT",
+      "RotateTRT"
+    ],
+    "initializers_by_type": {
+      "FLOAT": 1563
+    },
+    "inputs": [
+      "prev_track_intances0",
+      "prev_track_intances1",
+      "prev_track_intances3",
+      "prev_track_intances4",
+      "prev_track_intances5",
+      "prev_track_intances6",
+      "prev_track_intances8",
+      "prev_track_intances9",
+      "prev_track_intances11",
+      "prev_track_intances12",
+      "prev_track_intances13",
+      "prev_timestamp",
+      "prev_l2g_r_mat",
+      "prev_l2g_t",
+      "prev_bev",
+      "timestamp",
+      "l2g_r_mat",
+      "l2g_t",
+      "img",
+      "img_metas_can_bus",
+      "img_metas_lidar2img",
+      "command",
+      "use_prev_bev",
+      "max_obj_id"
+    ],
+    "ir_version": 10,
+    "matmul_dq_activation_input_count": 0,
+    "matmul_int8_weight_input_count": 0,
+    "node_count": 26945,
+    "operators": {
+      "Add": 1506,
+      "And": 21,
+      "ArgMax": 2,
+      "Atan": 3,
+      "BatchNormalization": 26,
+      "Cast": 1071,
+      "Clip": 76,
+      "Concat": 942,
+      "Constant": 9198,
+      "ConstantOfShape": 422,
+      "Conv": 160,
+      "Cos": 25,
+      "CumSum": 5,
+      "Div": 496,
+      "Einsum": 6,
+      "Equal": 348,
+      "Exp": 8,
+      "Expand": 416,
+      "Flatten": 6,
+      "Gather": 1395,
+      "Gemm": 56,
+      "Greater": 21,
+      "GreaterOrEqual": 12,
+      "GridSample": 1,
+      "Identity": 3,
+      "InverseTRT": 1,
+      "Less": 23,
+      "LessOrEqual": 2,
+      "Log": 25,
+      "MatMul": 549,
+      "Max": 1,
+      "MaxPool": 8,
+      "Min": 2,
+      "Mod": 21,
+      "ModulatedDeformableConv2dTRT": 26,
+      "Mul": 1177,
+      "MultiScaleDeformableAttnTRT": 33,
+      "Neg": 6,
+      "NonZero": 35,
+      "Not": 29,
+      "Pad": 7,
+      "Pow": 143,
+      "RandomUniformLike": 1,
+      "Range": 279,
+      "ReduceMax": 4,
+      "ReduceMean": 288,
+      "ReduceProd": 3,
+      "ReduceSum": 19,
+      "Relu": 274,
+      "Reshape": 906,
+      "Resize": 18,
+      "RotateTRT": 1,
+      "ScatterND": 90,
+      "Shape": 1840,
+      "Sigmoid": 62,
+      "Sign": 2,
+      "Sin": 25,
+      "Slice": 843,
+      "Softmax": 43,
+      "Split": 35,
+      "Sqrt": 142,
+      "Squeeze": 51,
+      "Sub": 301,
+      "Tanh": 1,
+      "Tile": 21,
+      "TopK": 2,
+      "Transpose": 805,
+      "Unsqueeze": 2233,
+      "Where": 338,
+      "Xor": 5
+    },
+    "opsets": {
+      "ai.onnx": 16
+    },
+    "outputs": [
+      "prev_track_intances0_out",
+      "prev_track_intances1_out",
+      "prev_track_intances3_out",
+      "prev_track_intances4_out",
+      "prev_track_intances5_out",
+      "prev_track_intances6_out",
+      "prev_track_intances8_out",
+      "prev_track_intances9_out",
+      "prev_track_intances11_out",
+      "prev_track_intances12_out",
+      "prev_track_intances13_out",
+      "prev_timestamp_out",
+      "prev_l2g_t_out",
+      "prev_l2g_r_mat_out",
+      "bev_embed",
+      "bboxes_dict_bboxes",
+      "scores",
+      "labels",
+      "bbox_index",
+      "obj_idxes",
+      "max_obj_id_out",
+      "seg_out",
+      "outs_planning"
+    ],
+    "path": "DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/uniad_base_e2e/onnx/uniad_base_e2e_dcn_plugin.repaired.onnx",
+    "quantization_scale_count": 0,
+    "quantization_scales_finite": true,
+    "quantization_scales_positive": true
+  },
+  "quantized_onnx": {
+    "domains": {
+      "ai.onnx": 9159,
+      "trt.plugins": 61
+    },
+    "expected_trt_plugins": [
+      "InverseTRT",
+      "ModulatedDeformableConv2dTRT",
+      "MultiScaleDeformableAttnTRT",
+      "RotateTRT"
+    ],
+    "initializers_by_type": {
+      "BOOL": 12,
+      "FLOAT": 2984,
+      "INT32": 22,
+      "INT64": 3642,
+      "INT8": 881
+    },
+    "inputs": [
+      "prev_track_intances0",
+      "prev_track_intances1",
+      "prev_track_intances3",
+      "prev_track_intances4",
+      "prev_track_intances5",
+      "prev_track_intances6",
+      "prev_track_intances8",
+      "prev_track_intances9",
+      "prev_track_intances11",
+      "prev_track_intances12",
+      "prev_track_intances13",
+      "prev_timestamp",
+      "prev_l2g_r_mat",
+      "prev_l2g_t",
+      "prev_bev",
+      "timestamp",
+      "l2g_r_mat",
+      "l2g_t",
+      "img",
+      "img_metas_can_bus",
+      "img_metas_lidar2img",
+      "command",
+      "use_prev_bev",
+      "max_obj_id"
+    ],
+    "ir_version": 9,
+    "matmul_dq_activation_input_count": 74,
+    "matmul_int8_weight_input_count": 0,
+    "node_count": 9220,
+    "operators": {
+      "Add": 1232,
+      "And": 16,
+      "ArgMax": 2,
+      "Atan": 3,
+      "BatchNormalization": 26,
+      "Cast": 139,
+      "Clip": 73,
+      "Concat": 301,
+      "ConstantOfShape": 65,
+      "Conv": 160,
+      "Cos": 21,
+      "CumSum": 3,
+      "DequantizeLinear": 676,
+      "Div": 273,
+      "Einsum": 6,
+      "Equal": 107,
+      "Exp": 8,
+      "Expand": 334,
+      "Flatten": 5,
+      "Gather": 388,
+      "Gemm": 53,
+      "Greater": 16,
+      "GreaterOrEqual": 10,
+      "GridSample": 1,
+      "Identity": 3,
+      "InverseTRT": 1,
+      "Less": 13,
+      "LessOrEqual": 2,
+      "Log": 24,
+      "MatMul": 536,
+      "Max": 1,
+      "MaxPool": 8,
+      "Min": 2,
+      "Mod": 2,
+      "ModulatedDeformableConv2dTRT": 26,
+      "Mul": 348,
+      "MultiScaleDeformableAttnTRT": 33,
+      "Neg": 3,
+      "NonZero": 25,
+      "Not": 22,
+      "Pow": 142,
+      "QuantizeLinear": 471,
+      "RandomUniformLike": 1,
+      "Range": 98,
+      "ReduceMax": 4,
+      "ReduceMean": 286,
+      "ReduceProd": 3,
+      "ReduceSum": 17,
+      "Relu": 273,
+      "Reshape": 641,
+      "Resize": 17,
+      "RotateTRT": 1,
+      "ScatterND": 82,
+      "Shape": 360,
+      "Sigmoid": 61,
+      "Sign": 2,
+      "Sin": 21,
+      "Slice": 385,
+      "Softmax": 42,
+      "Split": 2,
+      "Sqrt": 141,
+      "Squeeze": 24,
+      "Sub": 246,
+      "Tanh": 1,
+      "Tile": 17,
+      "TopK": 2,
+      "Transpose": 307,
+      "Unsqueeze": 509,
+      "Where": 97
+    },
+    "opsets": {
+      "ai.onnx": 16,
+      "trt.plugins": 1
+    },
+    "outputs": [
+      "prev_track_intances0_out",
+      "prev_track_intances1_out",
+      "prev_track_intances3_out",
+      "prev_track_intances4_out",
+      "prev_track_intances5_out",
+      "prev_track_intances6_out",
+      "prev_track_intances8_out",
+      "prev_track_intances9_out",
+      "prev_track_intances11_out",
+      "prev_track_intances12_out",
+      "prev_track_intances13_out",
+      "prev_timestamp_out",
+      "prev_l2g_t_out",
+      "prev_l2g_r_mat_out",
+      "bev_embed",
+      "bboxes_dict_bboxes",
+      "scores",
+      "labels",
+      "bbox_index",
+      "obj_idxes",
+      "max_obj_id_out",
+      "seg_out",
+      "outs_planning"
+    ],
+    "path": "DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/uniad_base_e2e/onnx/uniad_base_e2e_int8_eq_dq_only.onnx",
+    "quantization_scale_count": 70063,
+    "quantization_scales_finite": true,
+    "quantization_scales_positive": true
+  },
+  "schema_version": 1
+}
