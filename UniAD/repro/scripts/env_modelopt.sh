@@ -15,4 +15,3 @@ export CUDNN_ROOT="${CONDA_PREFIX}/lib/python3.10/site-packages/nvidia/cudnn"
 export PATH="${CUDA_HOME}/bin:${TRT_ROOT}/bin:${PATH}"
 export LD_LIBRARY_PATH="${TRT_ROOT}/lib:${CUDNN_ROOT}/lib:${CUDA_HOME}/lib:${CUDA_HOME}/lib64:${LD_LIBRARY_PATH:-}"
 export PYTHONNOUSERSITE=1
-export TZ=Asia/Shanghai

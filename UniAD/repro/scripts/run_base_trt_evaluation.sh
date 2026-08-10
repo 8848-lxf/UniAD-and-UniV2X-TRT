@@ -14,12 +14,14 @@ source "${REPRO_ROOT}/scripts/env_modelopt.sh"
 
 BASE_ROOT=${BASE_ROOT:-${REPRO_ROOT}/artifacts/uniad_base_e2e}
 UNIAD_GPU=${UNIAD_GPU:-6}
-ENGINE_PATH="${BASE_ROOT}/engines/uniad_base_${PRECISION}.engine"
+ENGINE_PATH=${ENGINE_PATH:-${BASE_ROOT}/engines/uniad_base_${PRECISION}.engine}
+EVAL_TAG=${EVAL_TAG:-${PRECISION}}
+FIXED_TRACK_COUNT=${FIXED_TRACK_COUNT:-0}
 APP_ROOT="${REPRO_ROOT}/package/uniad-trt/inference_app/enqueueV3"
 APP_PATH="${APP_ROOT}/build_base/uniad"
 PLUGIN_PATH="${APP_ROOT}/build_base/libuniad_plugin.so"
 INPUT_PATH="${BASE_ROOT}/metadata/trt_inputs"
-OUTPUT_PATH="${BASE_ROOT}/evaluation/tensorrt_${PRECISION}"
+OUTPUT_PATH="${BASE_ROOT}/evaluation/tensorrt_${EVAL_TAG}"
 METRICS_PATH="${OUTPUT_PATH}/latency_metrics.json"
 
 for required_path in "${ENGINE_PATH}" "${APP_PATH}" "${PLUGIN_PATH}" "${INPUT_PATH}/info.txt"; do
@@ -40,7 +42,8 @@ cd "${APP_ROOT}"
   "${NUM_FRAMES}" \
   "${METRICS_PATH}" \
   10 \
-  0
+  0 \
+  "${FIXED_TRACK_COUNT}"
 
 source "${REPRO_ROOT}/scripts/env.sh"
 REFERENCE_PATH="${BASE_ROOT}/evaluation/pytorch_fp32/planning_predictions.csv"
@@ -53,4 +56,6 @@ python tools/evaluate_planning_outputs.py \
   --predictions "${OUTPUT_PATH}/planning_predictions.csv" \
   --ground-truth "${BASE_ROOT}/metadata/planning_ground_truth" \
   --output "${OUTPUT_PATH}/planning_metrics.json" \
+  --x-bound -50 50 0.5 \
+  --y-bound -50 50 0.5 \
   "${REFERENCE_ARGS[@]}"

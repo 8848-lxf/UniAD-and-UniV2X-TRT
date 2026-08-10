@@ -14,4 +14,3 @@ export CUDAHOSTCXX="${CONDA_PREFIX}/bin/g++"
 export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH:-}"
 export PYTHONNOUSERSITE=1
 export PYTHONHASHSEED=0
-export TZ=Asia/Shanghai

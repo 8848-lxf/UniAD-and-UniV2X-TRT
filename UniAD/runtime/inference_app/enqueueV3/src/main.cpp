@@ -232,50 +232,118 @@ std::shared_ptr<UniAD::Kernel> create_kernel(const std::string& engine_pth) {
     return instance;
 }
 
-void temporal_info_assign(UniAD::KernelInput& input_t, const UniAD::KernelOutput& output_t_1) {
-    input_t.prev_track_intances0.assign(output_t_1.prev_track_intances0_out.begin(), output_t_1.prev_track_intances0_out.end());
+template <typename T>
+void assign_temporal_track_tensor(
+    std::vector<T>& destination,
+    std::vector<TRT_INT_TYPE>& input_shape,
+    const std::vector<T>& source,
+    const std::vector<TRT_INT_TYPE>& output_shape,
+    int fixed_track_count,
+    const char* tensor_name) {
+    if (output_shape.empty() || output_shape[0] < 0) {
+        fprintf(stderr, "[ERROR] Invalid temporal output shape for %s.\n", tensor_name);
+        std::abort();
+    }
+    const size_t actual_rows = static_cast<size_t>(output_shape[0]);
+    const size_t row_width = std::accumulate(
+        output_shape.begin() + 1, output_shape.end(), size_t{1}, std::multiplies<size_t>());
+    const size_t actual_elements = actual_rows * row_width;
+    if (actual_elements > source.size()) {
+        fprintf(stderr, "[ERROR] Temporal output %s exceeds its host buffer.\n", tensor_name);
+        std::abort();
+    }
+    if (fixed_track_count > 0 && actual_rows > static_cast<size_t>(fixed_track_count)) {
+        fprintf(stderr, "[ERROR] Temporal output %s has %zu rows, exceeding fixed capacity %d.\n",
+                tensor_name, actual_rows, fixed_track_count);
+        std::abort();
+    }
+    destination.assign(source.begin(), source.begin() + actual_elements);
+    input_shape = output_shape;
+    if (fixed_track_count > 0) {
+        destination.resize(static_cast<size_t>(fixed_track_count) * row_width, static_cast<T>(-10000));
+        input_shape[0] = fixed_track_count;
+    }
+}
+
+void set_fixed_track_input_shapes(UniAD::KernelInput& input, int fixed_track_count) {
+    if (fixed_track_count <= 0) return;
+    const char* names[] = {
+        "prev_track_intances0", "prev_track_intances1", "prev_track_intances3",
+        "prev_track_intances4", "prev_track_intances5", "prev_track_intances6",
+        "prev_track_intances8", "prev_track_intances9", "prev_track_intances11",
+        "prev_track_intances12", "prev_track_intances13"};
+    for (const char* name : names) input.input_shapes.at(name)[0] = fixed_track_count;
+}
+
+void temporal_info_assign(
+    UniAD::KernelInput& input_t,
+    const UniAD::KernelOutput& output_t_1,
+    int fixed_track_count) {
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances0, input_t.input_shapes["prev_track_intances0"],
+        output_t_1.prev_track_intances0_out, output_t_1.output_shapes.at("prev_track_intances0_out"),
+        fixed_track_count, "prev_track_intances0");
     input_t.data_ptrs["prev_track_intances0"] = input_t.prev_track_intances0.data();
-    input_t.input_shapes["prev_track_intances0"] = output_t_1.output_shapes.at("prev_track_intances0_out");
 
-    input_t.prev_track_intances1.assign(output_t_1.prev_track_intances1_out.begin(), output_t_1.prev_track_intances1_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances1, input_t.input_shapes["prev_track_intances1"],
+        output_t_1.prev_track_intances1_out, output_t_1.output_shapes.at("prev_track_intances1_out"),
+        fixed_track_count, "prev_track_intances1");
     input_t.data_ptrs["prev_track_intances1"] = input_t.prev_track_intances1.data();
-    input_t.input_shapes["prev_track_intances1"] = output_t_1.output_shapes.at("prev_track_intances1_out");
 
-    input_t.prev_track_intances3.assign(output_t_1.prev_track_intances3_out.begin(), output_t_1.prev_track_intances3_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances3, input_t.input_shapes["prev_track_intances3"],
+        output_t_1.prev_track_intances3_out, output_t_1.output_shapes.at("prev_track_intances3_out"),
+        fixed_track_count, "prev_track_intances3");
     input_t.data_ptrs["prev_track_intances3"] = input_t.prev_track_intances3.data();
-    input_t.input_shapes["prev_track_intances3"] = output_t_1.output_shapes.at("prev_track_intances3_out");
 
-    input_t.prev_track_intances4.assign(output_t_1.prev_track_intances4_out.begin(), output_t_1.prev_track_intances4_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances4, input_t.input_shapes["prev_track_intances4"],
+        output_t_1.prev_track_intances4_out, output_t_1.output_shapes.at("prev_track_intances4_out"),
+        fixed_track_count, "prev_track_intances4");
     input_t.data_ptrs["prev_track_intances4"] = input_t.prev_track_intances4.data();
-    input_t.input_shapes["prev_track_intances4"] = output_t_1.output_shapes.at("prev_track_intances4_out");
 
-    input_t.prev_track_intances5.assign(output_t_1.prev_track_intances5_out.begin(), output_t_1.prev_track_intances5_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances5, input_t.input_shapes["prev_track_intances5"],
+        output_t_1.prev_track_intances5_out, output_t_1.output_shapes.at("prev_track_intances5_out"),
+        fixed_track_count, "prev_track_intances5");
     input_t.data_ptrs["prev_track_intances5"] = input_t.prev_track_intances5.data();
-    input_t.input_shapes["prev_track_intances5"] = output_t_1.output_shapes.at("prev_track_intances5_out");
 
-    input_t.prev_track_intances6.assign(output_t_1.prev_track_intances6_out.begin(), output_t_1.prev_track_intances6_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances6, input_t.input_shapes["prev_track_intances6"],
+        output_t_1.prev_track_intances6_out, output_t_1.output_shapes.at("prev_track_intances6_out"),
+        fixed_track_count, "prev_track_intances6");
     input_t.data_ptrs["prev_track_intances6"] = input_t.prev_track_intances6.data();
-    input_t.input_shapes["prev_track_intances6"] = output_t_1.output_shapes.at("prev_track_intances6_out");
 
-    input_t.prev_track_intances8.assign(output_t_1.prev_track_intances8_out.begin(), output_t_1.prev_track_intances8_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances8, input_t.input_shapes["prev_track_intances8"],
+        output_t_1.prev_track_intances8_out, output_t_1.output_shapes.at("prev_track_intances8_out"),
+        fixed_track_count, "prev_track_intances8");
     input_t.data_ptrs["prev_track_intances8"] = input_t.prev_track_intances8.data();
-    input_t.input_shapes["prev_track_intances8"] = output_t_1.output_shapes.at("prev_track_intances8_out");
 
-    input_t.prev_track_intances9.assign(output_t_1.prev_track_intances9_out.begin(), output_t_1.prev_track_intances9_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances9, input_t.input_shapes["prev_track_intances9"],
+        output_t_1.prev_track_intances9_out, output_t_1.output_shapes.at("prev_track_intances9_out"),
+        fixed_track_count, "prev_track_intances9");
     input_t.data_ptrs["prev_track_intances9"] = input_t.prev_track_intances9.data();
-    input_t.input_shapes["prev_track_intances9"] = output_t_1.output_shapes.at("prev_track_intances9_out");
 
-    input_t.prev_track_intances11.assign(output_t_1.prev_track_intances11_out.begin(), output_t_1.prev_track_intances11_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances11, input_t.input_shapes["prev_track_intances11"],
+        output_t_1.prev_track_intances11_out, output_t_1.output_shapes.at("prev_track_intances11_out"),
+        fixed_track_count, "prev_track_intances11");
     input_t.data_ptrs["prev_track_intances11"] = input_t.prev_track_intances11.data();
-    input_t.input_shapes["prev_track_intances11"] = output_t_1.output_shapes.at("prev_track_intances11_out");
 
-    input_t.prev_track_intances12.assign(output_t_1.prev_track_intances12_out.begin(), output_t_1.prev_track_intances12_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances12, input_t.input_shapes["prev_track_intances12"],
+        output_t_1.prev_track_intances12_out, output_t_1.output_shapes.at("prev_track_intances12_out"),
+        fixed_track_count, "prev_track_intances12");
     input_t.data_ptrs["prev_track_intances12"] = input_t.prev_track_intances12.data();
-    input_t.input_shapes["prev_track_intances12"] = output_t_1.output_shapes.at("prev_track_intances12_out");
 
-    input_t.prev_track_intances13.assign(output_t_1.prev_track_intances13_out.begin(), output_t_1.prev_track_intances13_out.end());
+    assign_temporal_track_tensor(
+        input_t.prev_track_intances13, input_t.input_shapes["prev_track_intances13"],
+        output_t_1.prev_track_intances13_out, output_t_1.output_shapes.at("prev_track_intances13_out"),
+        fixed_track_count, "prev_track_intances13");
     input_t.data_ptrs["prev_track_intances13"] = input_t.prev_track_intances13.data();
-    input_t.input_shapes["prev_track_intances13"] = output_t_1.output_shapes.at("prev_track_intances13_out");
 
     input_t.prev_timestamp.assign(output_t_1.prev_timestamp_out.begin(), output_t_1.prev_timestamp_out.end());
     input_t.data_ptrs["prev_timestamp"] = input_t.prev_timestamp.data();
@@ -377,6 +445,7 @@ struct LatencySummary {
     double mean = 0.0;
     double p50 = 0.0;
     double p95 = 0.0;
+    double p99 = 0.0;
     double minimum = 0.0;
     double maximum = 0.0;
 };
@@ -398,6 +467,7 @@ static LatencySummary summarize(const std::vector<double>& samples) {
     result.mean = std::accumulate(sorted.begin(), sorted.end(), 0.0) / sorted.size();
     result.p50 = percentile(sorted, 0.50);
     result.p95 = percentile(sorted, 0.95);
+    result.p99 = percentile(sorted, 0.99);
     result.minimum = sorted.front();
     result.maximum = sorted.back();
     return result;
@@ -419,6 +489,7 @@ static void write_summary_json(
     int frames,
     int warmup_iterations,
     bool visualization_enabled,
+    int fixed_track_count,
     const LatencySummary& model,
     const LatencySummary& inference,
     const LatencySummary& e2e) {
@@ -429,7 +500,7 @@ static void write_summary_json(
     std::ofstream metrics(metrics_path);
     metrics << std::fixed << std::setprecision(6);
     metrics << "{\n"
-            << "  \"schema_version\": 1,\n"
+            << "  \"schema_version\": 2,\n"
             << "  \"engine_path\": \"" << json_escape(engine_path) << "\",\n"
             << "  \"plugin_path\": \"" << json_escape(plugin_path) << "\",\n"
             << "  \"gpu\": \"" << json_escape(properties.name) << "\",\n"
@@ -438,6 +509,7 @@ static void write_summary_json(
             << "  \"frames\": " << frames << ",\n"
             << "  \"warmup_iterations\": " << warmup_iterations << ",\n"
             << "  \"visualization_enabled\": " << (visualization_enabled ? "true" : "false") << ",\n"
+            << "  \"fixed_track_input_count\": " << fixed_track_count << ",\n"
             << "  \"definitions\": {\n"
             << "    \"model_enqueue\": \"CUDA event around TensorRT enqueueV3 on the inference stream\",\n"
             << "    \"inference_call\": \"Synchronized wall time for H2D, enqueueV3, DDS handling and D2H\",\n"
@@ -447,6 +519,7 @@ static void write_summary_json(
         metrics << "  \"" << name << "\": {\"mean_ms\": " << value.mean
                 << ", \"p50_ms\": " << value.p50
                 << ", \"p95_ms\": " << value.p95
+                << ", \"p99_ms\": " << value.p99
                 << ", \"min_ms\": " << value.minimum
                 << ", \"max_ms\": " << value.maximum
                 << ", \"fps_from_mean\": " << (value.mean > 0.0 ? 1000.0 / value.mean : 0.0) << "}"
@@ -460,7 +533,7 @@ static void write_summary_json(
 
 int main(int argc, char** argv) {
     if (argc < 6) {
-        fprintf(stderr, "Usage: %s ENGINE PLUGIN INPUT_DIR OUTPUT_DIR NUM_FRAMES [METRICS_JSON] [WARMUP_ITERS] [VISUALIZE_0_OR_1]\n", argv[0]);
+        fprintf(stderr, "Usage: %s ENGINE PLUGIN INPUT_DIR OUTPUT_DIR NUM_FRAMES [METRICS_JSON] [WARMUP_ITERS] [VISUALIZE_0_OR_1] [FIXED_TRACK_COUNT]\n", argv[0]);
         return 2;
     }
     const std::string engine_pth = argv[1];
@@ -472,8 +545,11 @@ int main(int argc, char** argv) {
     const std::string metrics_pth = argc > 6 ? argv[6] : output_pth + "/latency_metrics.json";
     const int num_warmup_iter = argc > 7 ? std::stoi(argv[7]) : 10;
     const bool enable_visualization = argc > 8 ? std::stoi(argv[8]) != 0 : true;
-    if (num_frames <= 0 || num_warmup_iter < 0) {
-        fprintf(stderr, "[ERROR] NUM_FRAMES must be positive and WARMUP_ITERS must be non-negative.\n");
+    const int fixed_track_count = argc > 9 ? std::stoi(argv[9]) : 0;
+    if (num_frames <= 0 || num_warmup_iter < 0 ||
+        (fixed_track_count != 0 &&
+         (fixed_track_count < TRACK_INS_MIN || fixed_track_count > TRACK_INS_MAX))) {
+        fprintf(stderr, "[ERROR] Invalid frame, warmup, or fixed-track count argument.\n");
         return 2;
     }
     struct stat output_stat;
@@ -523,6 +599,7 @@ int main(int argc, char** argv) {
     std::vector<float> warmup_scene(32, 0.0f);
     bool have_warmup_scene = false;
     load_input_frame(input_pth, 0, warmup_input, warmup_scene, have_warmup_scene);
+    set_fixed_track_input_shapes(warmup_input, fixed_track_count);
     auto warmup_images = load_images(infos, 0);
     warmup_input.img = pre_processor->img_pre_processing(warmup_images, stream);
     free_images(warmup_images);
@@ -568,8 +645,9 @@ int main(int argc, char** argv) {
         std::unique_ptr<UniAD::KernelOutput> output(new UniAD::KernelOutput());
         const auto e2e_begin = std::chrono::steady_clock::now();
         const bool scene_changed = load_input_frame(input_pth, i, input, current_scene, have_scene);
+        set_fixed_track_input_shapes(input, fixed_track_count);
         if (disable_temporal_state) input.use_prev_bev[0] = 0;
-        else if (!scene_changed && previous_output) temporal_info_assign(input, *previous_output);
+        else if (!scene_changed && previous_output) temporal_info_assign(input, *previous_output, fixed_track_count);
 
         auto images = load_images(infos, i);
         if (!valid_images(images)) {
@@ -620,7 +698,8 @@ int main(int argc, char** argv) {
     const LatencySummary inference_summary = summarize(inference_samples);
     const LatencySummary e2e_summary = summarize(e2e_samples);
     write_summary_json(metrics_pth, engine_pth, plugin_pth, num_frames, num_warmup_iter,
-                       enable_visualization, model_summary, inference_summary, e2e_summary);
+                       enable_visualization, fixed_track_count,
+                       model_summary, inference_summary, e2e_summary);
     printf("[RESULT] model enqueue: mean %.3f ms, p50 %.3f ms, FPS %.3f.\n",
            model_summary.mean, model_summary.p50, 1000.0 / model_summary.mean);
     printf("[RESULT] inference call: mean %.3f ms, p50 %.3f ms.\n",
