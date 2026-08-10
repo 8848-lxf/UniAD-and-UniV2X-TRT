@@ -27,9 +27,9 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Base engine finite-output smoke | Completed | `UniAD/evidence/uniad_base_e2e/base_engine_smoke_sample0.json`. |
 | Base PyTorch full 6018-frame evaluation | Completed | Original checkpoint baseline recorded below. |
 | Base TensorRT FP32 dynamic full 6018-frame evaluation | Completed, not accepted as final runtime | Accuracy and latency are recorded below. Forty-two shape-update spikes above 1 s inflated the mean; fixed-shape rerun supersedes its timing. |
-| Base TensorRT FP32 fixed-1150 full evaluation | Running | A 50-frame exact-equivalence smoke passed; full 6018-frame PID was launched on GPU 6. |
-| Base TensorRT FP16 fixed-1150 full evaluation | Running | Started on GPU 7 while the FP32 fixed-1150 run continues on GPU 6. |
-| Base TensorRT INT8 full evaluation | Pending | Run after FP16; current base calibration set contains only 8 training samples and must be called out in accuracy interpretation. |
+| Base TensorRT FP32 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite metrics and no second-scale latency spikes. |
+| Base TensorRT FP16 fixed-1150 full evaluation | Running | Running independently on GPU 7 with the same fixed-input and 6018-frame protocol. |
+| Base TensorRT INT8 fixed-1150 full evaluation | Running, preliminary calibration | Started on GPU 6 after FP32 passed; its tag explicitly records the current 8-sample training calibration. |
 | CARLA closed-loop evaluation | Not completed | Existing CARLA assets are partial/reused; the full download was explicitly paused. |
 
 ## Verified results
@@ -70,6 +70,20 @@ The smoke latency trend is `FP32 > FP16 > INT8`, matching the NVIDIA example qua
 
 The mean includes 42 enqueue spikes above 1 s, with maxima around 11.7 s. The original standalone evaluator also used tiny `50x50` collision bounds for this base `200x200` run; the corrected values above use the base `[-50, 50, 0.5]` grid. L2 is unaffected by that bounds bug.
 
+### Base TensorRT FP32, fixed-1150 full validation
+
+| Metric | Value |
+| --- | ---: |
+| planning avg. L2 | 2.559613 m |
+| planning avg. point collision | 0.254791% |
+| planning avg. box collision | 1.165947% |
+| planning vs PyTorch output avg. L2 | 3.144457 m |
+| enqueue mean / p50 / p99 | 185.945 / 185.443 / 191.793 ms |
+| inference-call mean / p50 / p99 | 215.580 / 214.395 / 233.181 ms |
+| end-to-end mean / p50 / p99 | 368.480 / 364.289 / 440.199 ms |
+
+The fixed-input run preserved the dynamic run's planning output but removed all 42 second-scale shape-reconfiguration spikes. Maximum enqueue was `209.019 ms` and maximum end-to-end was `625.901 ms`. Evidence is retained under `UniAD/evidence/uniad_base_e2e/fp32_fixed1150_full6018`.
+
 ## Resume procedure
 
 1. Confirm GPU 6 is still reserved and inspect the FP32 process/log before starting anything else.
@@ -78,6 +92,15 @@ The mean includes 42 enqueue spikes above 1 s, with maxima around 11.7 s. The or
 4. Compare planning output against PyTorch and separately state which full detection/tracking/map metrics the engine runner actually reconstructs.
 5. Increase/rebuild base INT8 calibration if full-validation degradation is excessive; do not silently compare an 8-sample calibration against a larger protocol.
 6. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 004 - 2026-08-09T19:45:35-07:00
+
+- Completed all 6018 frames of the base FP32 fixed-1150 evaluation on GPU 6.
+- Verified schema-v2 latency output, fixed input count `1150`, finite JSON values, and correct base `200x200` planning bounds.
+- Confirmed exact planning-metric equivalence to the prior dynamic run while eliminating every second-scale Myelin shape-update spike.
+- Started the INT8(EQ)+FP16 fixed-1150 full run on GPU 6 with an explicit `calib8` tag; this is a preliminary calibration result and will not be presented as a larger calibration protocol.
 
 ---
 
