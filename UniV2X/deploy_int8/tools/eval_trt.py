@@ -71,7 +71,7 @@ def parse_args():
     parser.add_argument("--plugin", required=True)
     parser.add_argument("--precision", required=True)
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--max-frames", type=int, default=0)
     parser.add_argument("--warmup-frames", type=int, default=20)
     parser.add_argument("--context-cache-size", type=int, default=1)
