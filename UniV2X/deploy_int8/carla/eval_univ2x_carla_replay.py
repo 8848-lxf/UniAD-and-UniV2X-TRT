@@ -46,6 +46,8 @@ def parse_args():
     parser.add_argument("--context-cache-size", type=int, default=1)
     parser.add_argument("--score-threshold", type=float, default=0.1)
     parser.add_argument("--match-distance", type=float, default=2.0)
+    parser.add_argument("--fixed-track-count", type=int, default=0)
+    parser.add_argument("--fixed-coop-count", type=int, default=0)
     parser.add_argument("--allow-timestamp-output-fallback", action="store_true")
     return parser.parse_args()
 
@@ -126,9 +128,10 @@ def pose_inputs(world_from_agent, velocity=None, acceleration=None, angular=None
 
 
 class ReplayAgentState:
-    def __init__(self, device, templates, scene_token):
+    def __init__(self, device, templates, scene_token, fixed_track_count=0):
         self.device = device
         self.templates = templates
+        self.fixed_track_count = fixed_track_count
         encoded = scene_token.encode("utf-8")[:32]
         self.scene_bytes = np.zeros(32, dtype=np.uint8)
         self.scene_bytes[:len(encoded)] = np.frombuffer(encoded, dtype=np.uint8)
@@ -137,6 +140,7 @@ class ReplayAgentState:
     def reset(self):
         self.tracks = empty_track_state(self.device)
         self.prev_timestamp = torch.zeros(1, dtype=torch.float32, device=self.device)
+        self.timestamp_origin = None
         self.prev_l2g_r_mat = torch.zeros(1, 3, 3, dtype=torch.float32, device=self.device)
         self.prev_l2g_t = torch.zeros(1, 3, dtype=torch.float32, device=self.device)
         self.prev_bev = torch.zeros(40000, 1, 256, dtype=torch.float32, device=self.device)
@@ -155,8 +159,32 @@ class ReplayAgentState:
             relative_can_bus[-1] -= self.prev_angle
         self.prev_position = can_bus[:3].copy()
         self.prev_angle = float(can_bus[-1])
+        if self.timestamp_origin is None:
+            self.timestamp_origin = timestamp
+        relative_timestamp = timestamp - self.timestamp_origin
+        input_tracks = self.tracks
+        if self.fixed_track_count:
+            current = int(input_tracks[0].shape[0])
+            if current > self.fixed_track_count:
+                raise RuntimeError(
+                    "track count %d exceeds fixed input capacity %d"
+                    % (current, self.fixed_track_count)
+                )
+            if current < self.fixed_track_count:
+                input_tracks = [
+                    torch.cat([
+                        value,
+                        torch.full(
+                            (self.fixed_track_count - current,) + value.shape[1:],
+                            -10000,
+                            dtype=value.dtype,
+                            device=value.device,
+                        ),
+                    ], dim=0)
+                    for value in input_tracks
+                ]
         values = [
-            *self.tracks,
+            *input_tracks,
             self.prev_timestamp,
             self.prev_l2g_r_mat,
             self.prev_l2g_t,
@@ -165,7 +193,9 @@ class ReplayAgentState:
             self.templates["gt_lane_masks"],
             self.templates["gt_segmentation"],
             torch.from_numpy(self.scene_bytes).to(self.device),
-            torch.tensor([timestamp], dtype=torch.float32, device=self.device),
+            torch.tensor(
+                [relative_timestamp], dtype=torch.float32, device=self.device
+            ),
             torch.from_numpy(l2g_r).to(self.device),
             torch.from_numpy(l2g_t).to(self.device),
             torch.from_numpy(image).to(self.device),
@@ -273,9 +303,11 @@ def main():
     )
     scene_token = "carla_%s" % manifest["map"]
     infrastructure_state = ReplayAgentState(
-        device, templates["infrastructure"], scene_token
+        device, templates["infrastructure"], scene_token, args.fixed_track_count
     )
-    ego_state = ReplayAgentState(device, templates["ego"], scene_token)
+    ego_state = ReplayAgentState(
+        device, templates["ego"], scene_token, args.fixed_track_count
+    )
     camera = manifest["capture"]["camera"]
     execution_stream = torch.cuda.Stream()
     rows = []
@@ -283,6 +315,7 @@ def main():
     total_matches = 0
     total_predictions = 0
     total_ground_truth = 0
+    timestamp_fallbacks = {"infrastructure": 0, "ego": 0}
 
     for record in manifest["frames"]:
         e2e_start = time.perf_counter()
@@ -324,6 +357,8 @@ def main():
                 infrastructure_fallback and args.allow_timestamp_output_fallback
             ):
                 raise RuntimeError("non-finite infrastructure outputs: %r" % bad)
+            if infrastructure_fallback:
+                timestamp_fallbacks["infrastructure"] += 1
             infrastructure_state.update(
                 infrastructure_outputs,
                 infrastructure_inputs["timestamp"] if infrastructure_fallback else None,
@@ -344,6 +379,7 @@ def main():
                 infrastructure_outputs,
                 ego_state,
                 torch.from_numpy(infrastructure_from_ego).to(device),
+                fixed_coop_count=args.fixed_coop_count,
             )
             ego_inputs.update(cooperative)
             execution_stream.synchronize()
@@ -357,6 +393,8 @@ def main():
             ego_fallback = bad == ["prev_timestamp_out"]
             if bad and not (ego_fallback and args.allow_timestamp_output_fallback):
                 raise RuntimeError("non-finite ego outputs: %r" % bad)
+            if ego_fallback:
+                timestamp_fallbacks["ego"] += 1
             ego_state.update(
                 ego_outputs, ego_inputs["timestamp"] if ego_fallback else None
             )
@@ -385,6 +423,8 @@ def main():
             "prediction_count": int(len(predictions)),
             "ground_truth_count": int(len(ground_truth)),
             "matched_count": matches,
+            "infrastructure_timestamp_fallback": int(infrastructure_fallback),
+            "ego_timestamp_fallback": int(ego_fallback),
             "planning_xy": planning[:, :2].tolist(),
             "cooperative": cooperative_stats,
         })
@@ -403,6 +443,20 @@ def main():
         "capture": os.path.abspath(args.capture_dir),
         "frames": len(rows),
         "warmup_frames_excluded": warmup,
+        "fixed_input_shapes": {
+            "track_count": args.fixed_track_count or None,
+            "cooperative_track_count": args.fixed_coop_count or None,
+            "padding_semantics": (
+                "Temporal rows use the graph's -10000 invalid sentinel; "
+                "cooperative rows use an out-of-range matched index."
+            ),
+        },
+        "runtime_fallbacks": {
+            "timestamp_identity_output_to_input_enabled": (
+                args.allow_timestamp_output_fallback
+            ),
+            "counts": timestamp_fallbacks,
+        },
         "engines": {
             "infrastructure": {
                 "path": os.path.abspath(args.infrastructure_engine),

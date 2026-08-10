@@ -293,7 +293,14 @@ def main():
                 sensor.stop()
             except Exception:
                 pass
-        for actor in reversed(sensors + actors):
+        # Attached sensors must be destroyed before their parent vehicle. CARLA
+        # destroys them with the parent and aborts on a later duplicate destroy.
+        for actor in reversed(sensors):
+            try:
+                actor.destroy()
+            except Exception:
+                pass
+        for actor in reversed(actors):
             try:
                 actor.destroy()
             except Exception:

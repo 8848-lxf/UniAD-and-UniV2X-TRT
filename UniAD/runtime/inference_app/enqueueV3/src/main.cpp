@@ -441,6 +441,15 @@ static bool valid_images(const std::vector<unsigned char*>& images) {
     return true;
 }
 
+static bool finite_planning(
+    const std::vector<std::pair<float, float>>& planning) {
+    return std::all_of(
+        planning.begin(), planning.end(),
+        [](const std::pair<float, float>& point) {
+            return std::isfinite(point.first) && std::isfinite(point.second);
+        });
+}
+
 struct LatencySummary {
     double mean = 0.0;
     double p50 = 0.0;
@@ -666,6 +675,10 @@ int main(int argc, char** argv) {
         const auto inference_end = std::chrono::steady_clock::now();
 
         const std::vector<std::pair<float, float>> planning = decode_planning_traj(*output);
+        if (!finite_planning(planning)) {
+            fprintf(stderr, "[ERROR] Non-finite planning trajectory at frame %d.\n", i);
+            return 6;
+        }
         const std::vector<std::vector<float>> boxes = decode_bbox(*output);
         const std::string command = decode_command(input);
         (void)command;

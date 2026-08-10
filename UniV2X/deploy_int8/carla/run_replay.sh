@@ -11,11 +11,12 @@ CAPTURE_DIR="$(readlink -f "$1")"
 PRECISION_KEY="$2"
 GPU="${UNIV2X_CARLA_GPU:-7}"
 PYTHON_BIN="/home/lixingfeng/anaconda3/envs/univ2x_trt_runtime/bin/python"
-TRT_LIB="/home/lixingfeng/UniAD_examine/HEAL/prune_model/TensorRT-10.9_x86_cu118/lib"
+TRT_LIB="/home/lixingfeng/UniAD_examine/HEAL/prune_model/TensorRT-10.9_x86_cu118/targets/x86_64-linux-gnu/lib"
 ENV_LIB="/home/lixingfeng/anaconda3/envs/univ2x_trt_runtime/lib"
-PLUGIN="/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/package/uniad-trt/inference_app/enqueueV3/build/libuniad_plugin.so"
+PLUGIN="${UNIV2X_ROOT}/deploy_int8/plugins_msda_fp32accum/build_univ2x_fp32accum/lib_uniad_plugins_trt10.9_x86_cu118.so"
 TEMPLATE_DIR="${UNIV2X_ROOT}/deploy_int8/artifacts/export_inputs/frame0"
 CAMERA_FIX_DIR="${UNIV2X_ROOT}/deploy_int8/artifacts/camera_repeat_fix"
+STABLE_DIR="${CAMERA_FIX_DIR}/numerical_stability_fix"
 EXTRA_ARGS=()
 
 case "${PRECISION_KEY}" in
@@ -26,14 +27,13 @@ case "${PRECISION_KEY}" in
         ;;
     fp16)
         PRECISION="FP16"
-        INFRA_ENGINE="${UNIV2X_INFRA_ENGINE:-${CAMERA_FIX_DIR}/engines/infrastructure_runtime_fp16.engine}"
-        EGO_ENGINE="${UNIV2X_EGO_ENGINE:-${CAMERA_FIX_DIR}/engines/ego_runtime_fp16.engine}"
-        EXTRA_ARGS+=(--allow-timestamp-output-fallback)
+        INFRA_ENGINE="${UNIV2X_INFRA_ENGINE:-${STABLE_DIR}/engines/infrastructure_runtime_fp16_v11_timestamp_bev_fp32.engine}"
+        EGO_ENGINE="${UNIV2X_EGO_ENGINE:-${STABLE_DIR}/engines/ego_runtime_fp16_stable_v13_agent_reference.engine}"
         ;;
     int8)
         PRECISION="INT8-EQ+FP16"
-        INFRA_ENGINE="${UNIV2X_INFRA_ENGINE:-${CAMERA_FIX_DIR}/engines/infrastructure_runtime_int8.engine}"
-        EGO_ENGINE="${UNIV2X_EGO_ENGINE:-${CAMERA_FIX_DIR}/engines/ego_runtime_int8.engine}"
+        INFRA_ENGINE="${UNIV2X_INFRA_ENGINE:-${STABLE_DIR}/engines/infrastructure_runtime_int8_stable_fixed960.engine}"
+        EGO_ENGINE="${UNIV2X_EGO_ENGINE:-${STABLE_DIR}/engines/ego_runtime_int8_stable_fixed960_64.engine}"
         ;;
     *)
         echo "unknown precision: ${PRECISION_KEY}" >&2
@@ -56,6 +56,8 @@ env CUDA_VISIBLE_DEVICES="${GPU}" \
     --plugin "${PLUGIN}" \
     --precision "${PRECISION}" \
     --template-input-dir "${TEMPLATE_DIR}" \
+    --fixed-track-count 960 \
+    --fixed-coop-count 64 \
     --output "${OUTPUT_JSON}" \
     "${EXTRA_ARGS[@]}"
 

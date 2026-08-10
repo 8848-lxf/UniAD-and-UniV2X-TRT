@@ -28,7 +28,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Base PyTorch full 6018-frame evaluation | Completed | Original checkpoint baseline recorded below. |
 | Base TensorRT FP32 dynamic full 6018-frame evaluation | Completed, not accepted as final runtime | Accuracy and latency are recorded below. Forty-two shape-update spikes above 1 s inflated the mean; fixed-shape rerun supersedes its timing. |
 | Base TensorRT FP32 fixed-1150 full evaluation | Running | A 50-frame exact-equivalence smoke passed; full 6018-frame PID was launched on GPU 6. |
-| Base TensorRT FP16 full evaluation | Pending | Run after FP32. |
+| Base TensorRT FP16 fixed-1150 full evaluation | Running | Started on GPU 7 while the FP32 fixed-1150 run continues on GPU 6. |
 | Base TensorRT INT8 full evaluation | Pending | Run after FP16; current base calibration set contains only 8 training samples and must be called out in accuracy interpretation. |
 | CARLA closed-loop evaluation | Not completed | Existing CARLA assets are partial/reused; the full download was explicitly paused. |
 
@@ -78,6 +78,15 @@ The mean includes 42 enqueue spikes above 1 s, with maxima around 11.7 s. The or
 4. Compare planning output against PyTorch and separately state which full detection/tracking/map metrics the engine runner actually reconstructs.
 5. Increase/rebuild base INT8 calibration if full-validation degradation is excessive; do not silently compare an 8-sample calibration against a larger protocol.
 6. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 003 - 2026-08-09T19:22:25-07:00
+
+- Added a strict runtime check that terminates with the exact frame index if any decoded planning coordinate is non-finite.
+- Kept the fixed-1150 FP32 full validation running on GPU 6; its stable enqueue timing continues without the earlier dynamic-shape Myelin spikes.
+- Started the fixed-1150 FP16 full 6018-frame validation on GPU 7 after the UniV2X INT8 and CARLA runs released that GPU.
+- Continued to inherit the active PDT process timezone; no experiment script forces Shanghai time.
 
 ---
 
