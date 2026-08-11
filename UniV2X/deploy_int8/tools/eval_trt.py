@@ -39,7 +39,8 @@ from projects.mmdet3d_plugin.univ2x.dense_heads.planning_head_plugin import (
     PlanningMetric,
 )
 from runtime_common import load_config
-from trt_engine import TensorRTEngine
+from trt_engine import MAP_POSITION_INPUT, TensorRTEngine
+from trt_runtime import apply_dynamic_map_postprocess
 
 
 VEHICLE_LABELS = (0, 1, 2, 3, 4, 6, 7)
@@ -50,8 +51,6 @@ MAP_RESULT_KEYS = (
     "crossing_intersection", "crossing_union",
     "contour_intersection", "contour_union",
 )
-
-
 def patch_disk_backend_file_objects():
     original_get = HardDiskBackend.get
 
@@ -77,13 +76,31 @@ def parse_args():
     parser.add_argument("--context-cache-size", type=int, default=1)
     parser.add_argument("--fixed-track-count", type=int, default=0)
     parser.add_argument("--fixed-coop-count", type=int, default=0)
+    parser.add_argument(
+        "--legacy-can-bus-deltas",
+        action="store_true",
+        help="Mirror the original UniV2X absolute/cross-scene can_bus behavior.",
+    )
     parser.add_argument("--progress-interval", type=int, default=1)
     parser.add_argument("--evaluate", action="store_true")
     parser.add_argument("--allow-timestamp-output-fallback", action="store_true")
     parser.add_argument("--allow-negative-inf-output", action="append", default=[])
     parser.add_argument(
+        "--occupancy-dump",
+        help="Optional compressed NPZ with per-frame binary occupancy and ground truth.",
+    )
+    parser.add_argument(
         "--diagnostic-ranges-jsonl",
         help="Optional per-frame tensor-range trace, including a failing frame.",
+    )
+    parser.add_argument(
+        "--snapshot-frames",
+        default="",
+        help="Comma-separated frame indices whose exact engine inputs/outputs are saved.",
+    )
+    parser.add_argument(
+        "--snapshot-dir",
+        help="Directory for --snapshot-frames NPZ files.",
     )
     return parser.parse_args()
 
@@ -355,12 +372,35 @@ def make_result(outputs, ego_data, map_result, planning_trajectory):
 
 
 def filtered_inputs(engine, values):
-    return {name: values[name] for name in engine.input_names}
+    missing = [
+        name for name in engine.input_names
+        if name not in values and name != MAP_POSITION_INPUT
+    ]
+    if missing:
+        raise KeyError("Missing TensorRT inputs: %s" % missing)
+    return {name: values[name] for name in engine.input_names if name in values}
+
+
+def save_snapshot(path, inputs, outputs):
+    arrays = {}
+    for prefix, values in (("input", inputs), ("output", outputs)):
+        for name, value in values.items():
+            arrays[f"{prefix}::{name}"] = value.detach().cpu().numpy()
+    temporary = path + ".tmp.npz"
+    np.savez_compressed(temporary, **arrays)
+    os.replace(temporary, path)
 
 
 def main():
     args = parse_args()
     mmcv.mkdir_or_exist(args.output_dir)
+    snapshot_frames = {
+        int(value) for value in args.snapshot_frames.split(",") if value.strip()
+    }
+    if snapshot_frames and not args.snapshot_dir:
+        raise ValueError("--snapshot-dir is required with --snapshot-frames")
+    if args.snapshot_dir:
+        mmcv.mkdir_or_exist(args.snapshot_dir)
     if args.diagnostic_ranges_jsonl:
         mmcv.mkdir_or_exist(osp.dirname(osp.abspath(args.diagnostic_ranges_jsonl)))
         open(args.diagnostic_ranges_jsonl, "w").close()
@@ -387,8 +427,12 @@ def main():
         context_cache_size=args.context_cache_size,
     )
     device = torch.device("cuda")
-    infrastructure_state = AgentState(device, args.fixed_track_count)
-    ego_state = AgentState(device, args.fixed_track_count)
+    infrastructure_state = AgentState(
+        device, args.fixed_track_count, args.legacy_can_bus_deltas
+    )
+    ego_state = AgentState(
+        device, args.fixed_track_count, args.legacy_can_bus_deltas
+    )
     execution_stream = torch.cuda.Stream()
 
     ranges = {"30x30": (70, 130), "100x100": (0, 200)}
@@ -415,7 +459,11 @@ def main():
     rows = []
     cooperative_rows = []
     num_occ = 0
+    occupancy_predictions = []
+    occupancy_ground_truth = []
+    occupancy_invalid = []
     timestamp_fallbacks = {"infrastructure": 0, "ego": 0}
+    map_postprocess_counts = {"infrastructure": 0, "ego": 0}
     allowed_negative_inf_counts = {}
 
     for frame_index in range(frame_limit):
@@ -432,12 +480,25 @@ def main():
             )
             execution_stream.synchronize()
             infrastructure_start = time.perf_counter()
+            infrastructure_engine_inputs = filtered_inputs(
+                infrastructure_engine, infrastructure_inputs
+            )
             infrastructure_outputs = infrastructure_engine.infer(
-                filtered_inputs(infrastructure_engine, infrastructure_inputs),
+                infrastructure_engine_inputs,
                 synchronize=False,
             )
             execution_stream.synchronize()
+            infrastructure_engine_end = time.perf_counter()
+            if apply_dynamic_map_postprocess(infrastructure_outputs):
+                map_postprocess_counts["infrastructure"] += 1
+                execution_stream.synchronize()
             infrastructure_end = time.perf_counter()
+            if frame_index in snapshot_frames:
+                save_snapshot(
+                    osp.join(args.snapshot_dir, f"frame_{frame_index:04d}_infrastructure.npz"),
+                    infrastructure_inputs,
+                    infrastructure_outputs,
+                )
             infrastructure_nonfinite = nonfinite_tensors(infrastructure_outputs)
             for name, count in consume_expected_negative_infinities(
                 infrastructure_nonfinite,
@@ -469,7 +530,11 @@ def main():
             )
 
             ego_inputs, ego_new_scene = ego_state.build_inputs(ego_data)
-            veh2inf_rt = agent_tensor(ego_data, "veh2inf_rt", device, torch.float32)
+            # The real cross-agent transform belongs to the infrastructure
+            # sample; ego_data.veh2inf_rt is identity by dataset convention.
+            veh2inf_rt = agent_tensor(
+                infrastructure_data, "veh2inf_rt", device, torch.float32
+            )
             cooperative_inputs, cooperative_stats = prepare_cooperative_inputs(
                 infrastructure_outputs,
                 ego_state,
@@ -479,11 +544,22 @@ def main():
             ego_inputs.update(cooperative_inputs)
             execution_stream.synchronize()
             ego_start = time.perf_counter()
+            ego_engine_inputs = filtered_inputs(ego_engine, ego_inputs)
             ego_outputs = ego_engine.infer(
-                filtered_inputs(ego_engine, ego_inputs), synchronize=False
+                ego_engine_inputs, synchronize=False
             )
             execution_stream.synchronize()
+            ego_engine_end = time.perf_counter()
+            if apply_dynamic_map_postprocess(ego_outputs):
+                map_postprocess_counts["ego"] += 1
+                execution_stream.synchronize()
             ego_end = time.perf_counter()
+            if frame_index in snapshot_frames:
+                save_snapshot(
+                    osp.join(args.snapshot_dir, f"frame_{frame_index:04d}_ego.npz"),
+                    ego_inputs,
+                    ego_outputs,
+                )
             if args.diagnostic_ranges_jsonl:
                 diagnostic = {
                     "frame": frame_index,
@@ -577,6 +653,14 @@ def main():
         invalid_occ = bool(agent_tensor(
             ego_data, "gt_occ_has_invalid_frame", device, torch.bool
         ).item())
+        if args.occupancy_dump:
+            occupancy_predictions.append(
+                occupancy.detach().cpu().numpy().astype(np.uint8)
+            )
+            occupancy_ground_truth.append(
+                segmentation_gt.detach().cpu().numpy().astype(np.uint8)
+            )
+            occupancy_invalid.append(invalid_occ)
         if not invalid_occ:
             num_occ += 1
             for key, (start, end) in ranges.items():
@@ -616,8 +700,22 @@ def main():
         rows.append({
             "frame": frame_index,
             "data_ms": (data_end - data_start) * 1000.0,
+            "infrastructure_engine_ms": (
+                infrastructure_engine_end - infrastructure_start
+            ) * 1000.0,
+            "infrastructure_map_postprocess_ms": (
+                infrastructure_end - infrastructure_engine_end
+            ) * 1000.0,
             "infrastructure_forward_ms": (infrastructure_end - infrastructure_start) * 1000.0,
+            "ego_engine_ms": (ego_engine_end - ego_start) * 1000.0,
+            "ego_map_postprocess_ms": (
+                ego_end - ego_engine_end
+            ) * 1000.0,
             "ego_forward_ms": (ego_end - ego_start) * 1000.0,
+            "engine_forward_ms": (
+                infrastructure_engine_end - infrastructure_start
+                + ego_engine_end - ego_start
+            ) * 1000.0,
             "forward_ms": (ego_end - infrastructure_start) * 1000.0,
             "end_to_end_ms": (e2e_end - e2e_start) * 1000.0,
         })
@@ -658,6 +756,16 @@ def main():
         "total_frames": frame_limit,
         "elapsed_seconds": time.perf_counter() - run_started,
     })
+
+    if args.occupancy_dump:
+        dump_parent = osp.dirname(osp.abspath(args.occupancy_dump))
+        mmcv.mkdir_or_exist(dump_parent)
+        np.savez_compressed(
+            args.occupancy_dump,
+            prediction=np.stack(occupancy_predictions),
+            ground_truth=np.stack(occupancy_ground_truth),
+            invalid=np.asarray(occupancy_invalid, dtype=np.bool_),
+        )
 
     occupancy_result = {}
     for key in ranges:
@@ -723,24 +831,45 @@ def main():
                 "excluded from fusion."
             ),
         },
+        "legacy_can_bus_deltas": args.legacy_can_bus_deltas,
         "runtime_fallbacks": {
             "timestamp_identity_output_to_input_enabled": args.allow_timestamp_output_fallback,
             "counts": timestamp_fallbacks,
             "semantic_basis": "prev_timestamp_out is ONNX Identity(timestamp)",
             "allowed_negative_inf_output_counts": allowed_negative_inf_counts,
         },
+        "runtime_postprocessing": {
+            "dynamic_map_enabled_counts": map_postprocess_counts,
+            "semantics": (
+                "Recompute data-dependent map overlap suppression from "
+                "map_raw_masks, map_raw_scores, and map_raw_labels."
+            ),
+        },
         "runtime_output_buffers": {
             "infrastructure": infrastructure_engine.allocation_stats(),
             "ego": ego_engine.allocation_stats(),
         },
         "definitions": {
-            "forward": "Infrastructure engine, cooperative host matching, and ego engine with CUDA synchronization",
+            "engine_forward": "Sum of CUDA-synchronized infrastructure and ego TensorRT infer calls; excludes map host postprocess and cooperative host matching",
+            "map_postprocess": "CPU reconstruction of data-dependent map overlap suppression from raw TensorRT outputs",
+            "forward": "Infrastructure engine and map postprocess, cooperative host matching, then ego engine and map postprocess, all synchronized",
             "end_to_end": "Dataloader wait, forward, official occupancy/planning updates, result reconstruction, and planning postprocess",
         },
+        "infrastructure_engine": summarize([
+            row["infrastructure_engine_ms"] for row in measured
+        ]),
+        "infrastructure_map_postprocess": summarize([
+            row["infrastructure_map_postprocess_ms"] for row in measured
+        ]),
         "infrastructure_forward": summarize([
             row["infrastructure_forward_ms"] for row in measured
         ]),
+        "ego_engine": summarize([row["ego_engine_ms"] for row in measured]),
+        "ego_map_postprocess": summarize([
+            row["ego_map_postprocess_ms"] for row in measured
+        ]),
         "ego_forward": summarize([row["ego_forward_ms"] for row in measured]),
+        "engine_forward": summarize([row["engine_forward_ms"] for row in measured]),
         "forward": summarize([row["forward_ms"] for row in measured]),
         "end_to_end": summarize([row["end_to_end_ms"] for row in measured]),
     }

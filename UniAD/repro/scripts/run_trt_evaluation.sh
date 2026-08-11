@@ -12,6 +12,7 @@ NUM_FRAMES=${2:-6018}
 REPRO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ARTIFACT_ROOT=${ARTIFACT_ROOT:-${REPRO_ROOT}/artifacts}
 UNIAD_GPU=${UNIAD_GPU:-0}
+FIXED_TRACK_COUNT=${FIXED_TRACK_COUNT:-1150}
 
 case "${PRECISION}" in
   fp32)
@@ -57,7 +58,8 @@ cd "${APP_ROOT}"
   "${NUM_FRAMES}" \
   "${METRICS_PATH}" \
   10 \
-  0
+  0 \
+  "${FIXED_TRACK_COUNT}"
 
 source "${REPRO_ROOT}/scripts/env.sh"
 REFERENCE_ROOT=${REFERENCE_ROOT:-${ARTIFACT_ROOT}}

@@ -6,6 +6,7 @@ REPRO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source "${REPRO_ROOT}/scripts/env.sh"
 ARTIFACT_ROOT=${ARTIFACT_ROOT:-${REPRO_ROOT}/artifacts}
 UNIAD_GPU=${UNIAD_GPU:-0}
+UNIAD_WORKERS_PER_GPU=${UNIAD_WORKERS_PER_GPU:-8}
 DISABLE_OCC_FOR_PLANNING_ONLY=${DISABLE_OCC_FOR_PLANNING_ONLY:-0}
 
 CHECKPOINT=${1:-${REPRO_ROOT}/artifacts/checkpoints/tiny_imgx0.25_e2e_ep20.pth}
@@ -23,9 +24,9 @@ export PYTHONPATH="${REPRO_ROOT}/UniAD_train:${PYTHONPATH:-}"
 export UNIAD_BENCHMARK_DIR="${EVAL_DIR}"
 export UNIAD_BENCHMARK_WARMUP=10
 
-EXTRA_ARGS=()
+EXTRA_ARGS=(--cfg-options "data.workers_per_gpu=${UNIAD_WORKERS_PER_GPU}")
 if [[ "${DISABLE_OCC_FOR_PLANNING_ONLY}" == "1" ]]; then
-  EXTRA_ARGS=(--cfg-options model.occ_head=None)
+  EXTRA_ARGS+=(model.occ_head=None)
 fi
 
 exec python -m torch.distributed.launch \

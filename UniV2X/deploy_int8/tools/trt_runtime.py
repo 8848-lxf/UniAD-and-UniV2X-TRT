@@ -52,6 +52,9 @@ TRACK_OUTPUT_NAMES = [
 TASK_OUTPUT_NAMES = [
     "drivable_pred",
     "lane_pred",
+    "map_raw_masks",
+    "map_raw_scores",
+    "map_raw_labels",
     "drivable_intersection",
     "drivable_union",
     "lanes_intersection",
@@ -95,6 +98,63 @@ OUTPUT_NAMES = [
 ]
 
 INFRASTRUCTURE_OUTPUT_NAMES = OUTPUT_NAMES[:-1]
+
+RAW_MAP_OUTPUT_NAMES = ("map_raw_masks", "map_raw_scores", "map_raw_labels")
+
+
+def apply_dynamic_map_postprocess(outputs):
+    present = [name in outputs for name in RAW_MAP_OUTPUT_NAMES]
+    if not any(present):
+        return False
+    if not all(present):
+        raise KeyError("Incomplete raw map outputs: %s" % dict(zip(
+            RAW_MAP_OUTPUT_NAMES, present
+        )))
+
+    raw_masks = outputs["map_raw_masks"]
+    raw_scores = outputs["map_raw_scores"]
+    raw_labels = outputs["map_raw_labels"]
+    if raw_masks.ndim != 3 or tuple(raw_masks.shape[1:]) != (200, 200):
+        raise ValueError("Unexpected map_raw_masks shape: %s" % (raw_masks.shape,))
+    query_count = raw_masks.shape[0]
+    if tuple(raw_scores.shape) != (query_count,):
+        raise ValueError("Unexpected map_raw_scores shape: %s" % (raw_scores.shape,))
+    if tuple(raw_labels.shape) != (query_count,):
+        raise ValueError("Unexpected map_raw_labels shape: %s" % (raw_labels.shape,))
+
+    masks = raw_masks.detach().float().cpu().numpy()
+    scores = raw_scores.detach().float().cpu().numpy()
+    labels = raw_labels.detach().long().cpu().numpy()
+    panoptic = np.zeros((200, 200), dtype=np.int64)
+    lane = np.zeros((3, 200, 200), dtype=np.int32)
+    for index in range(query_count):
+        label = int(labels[index])
+        score = float(scores[index])
+        if label < 3 and score < 0.1:
+            continue
+        if label >= 3 and score < 0.25:
+            continue
+        mask = masks[index] > 0.5
+        mask_area = int(mask.sum())
+        intersection = np.logical_and(mask, panoptic > 0)
+        intersection_area = int(intersection.sum())
+        overlap_limit = 0.4 if label < 3 else 0.2
+        if mask_area == 0 or intersection_area / mask_area > overlap_limit:
+            continue
+        if intersection_area:
+            mask = np.logical_and(mask, panoptic == 0)
+        panoptic[mask] = label
+        if label < 3:
+            lane[label, mask] = 1
+
+    traced_lane = outputs.get("lane_pred")
+    if traced_lane is not None:
+        outputs["lane_pred_traced"] = traced_lane
+    outputs["lane_pred"] = torch.from_numpy(lane).to(
+        device=raw_masks.device,
+        dtype=traced_lane.dtype if traced_lane is not None else torch.int32,
+    )
+    return True
 
 
 def build_trt_agent(config_path, checkpoint_path, agent):

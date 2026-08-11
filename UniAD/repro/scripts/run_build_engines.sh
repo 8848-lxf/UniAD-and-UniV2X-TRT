@@ -32,9 +32,9 @@ done
 mkdir -p "${ENGINE_DIR}" "${CACHE_DIR}"
 export CUDA_VISIBLE_DEVICES="${UNIAD_GPU}"
 
-MIN=901
-OPT=901
-MAX=1150
+MIN=${TRACK_MIN:-901}
+OPT=${TRACK_OPT:-901}
+MAX=${TRACK_MAX:-1150}
 DYNAMIC_SHAPES='prev_track_intances0:901x512,prev_track_intances1:901x3,prev_track_intances3:901,prev_track_intances4:901,prev_track_intances5:901,prev_track_intances6:901,prev_track_intances8:901,prev_track_intances9:901x10,prev_track_intances11:901x4x256,prev_track_intances12:901x4,prev_track_intances13:901'
 MIN_SHAPES=${DYNAMIC_SHAPES//901/${MIN}}
 OPT_SHAPES=${DYNAMIC_SHAPES//901/${OPT}}

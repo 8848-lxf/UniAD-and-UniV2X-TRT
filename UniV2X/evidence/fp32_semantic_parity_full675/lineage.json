@@ -1,0 +1,21 @@
+{
+  "evaluation_frames": 675,
+  "dataloader_workers": 8,
+  "precision": "fp32",
+  "tensorrt_version": "10.9.0.34",
+  "tf32_enabled": false,
+  "fixed_track_count": 960,
+  "fixed_cooperative_track_count": 64,
+  "infrastructure_engine": {
+    "bytes": 559108180,
+    "build_seconds": 189.83336901850998,
+    "sha256": "dd2f2119e684f18e550a34fe5deeefc0766e899688ef668c1daefdb128645fda"
+  },
+  "ego_engine": {
+    "bytes": 622267500,
+    "build_seconds": 209.64971437118948,
+    "sha256": "8defaf062437eb3101935ac17fed89411df03579d92f7f9e85ae2133002f1c7d"
+  },
+  "source_artifact_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810",
+  "status": "complete"
+}

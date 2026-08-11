@@ -1,4 +1,5 @@
 import ctypes
+import math
 from collections import OrderedDict
 
 import numpy as np
@@ -15,6 +16,37 @@ TORCH_DTYPES = {
     np.dtype(np.uint8): torch.uint8,
     np.dtype(np.bool_): torch.bool,
 }
+
+
+MAP_POSITION_INPUT = "map_position_encoding"
+_MAP_POSITION_CACHE = {}
+
+
+def static_map_position_encoding(device):
+    device = torch.device(device)
+    cache_key = str(device)
+    cached = _MAP_POSITION_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    mask = torch.zeros((1, 200, 200), dtype=torch.int32, device=device)
+    not_mask = 1 - mask
+    y_embed = not_mask.cumsum(1, dtype=torch.float32)
+    x_embed = not_mask.cumsum(2, dtype=torch.float32)
+    y_embed = (y_embed - 0.5) / (y_embed[:, -1:, :] + 1.0e-6) * (2 * math.pi)
+    x_embed = (x_embed - 0.5) / (x_embed[:, :, -1:] + 1.0e-6) * (2 * math.pi)
+    dim_t = torch.arange(128, dtype=torch.float32, device=device)
+    dim_t = 10000 ** (2 * torch.div(dim_t, 2, rounding_mode="floor") / 128)
+    pos_x = x_embed[:, :, :, None] / dim_t
+    pos_y = y_embed[:, :, :, None] / dim_t
+    pos_x = torch.stack(
+        (pos_x[:, :, :, 0::2].sin(), pos_x[:, :, :, 1::2].cos()), dim=4
+    ).view(1, 200, 200, -1)
+    pos_y = torch.stack(
+        (pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4
+    ).view(1, 200, 200, -1)
+    cached = torch.cat((pos_y, pos_x), dim=3).reshape(1, 40000, 256).contiguous()
+    _MAP_POSITION_CACHE[cache_key] = cached
+    return cached
 
 
 class TorchOutputAllocator(trt.IOutputAllocator):
@@ -169,6 +201,9 @@ class TensorRTEngine:
         }
 
     def infer(self, inputs, synchronize=True):
+        if MAP_POSITION_INPUT in self.input_names and MAP_POSITION_INPUT not in inputs:
+            inputs = dict(inputs)
+            inputs[MAP_POSITION_INPUT] = static_map_position_encoding("cuda")
         missing = [name for name in self.input_names if name not in inputs]
         if missing:
             raise KeyError(f"Missing TensorRT inputs: {missing}")

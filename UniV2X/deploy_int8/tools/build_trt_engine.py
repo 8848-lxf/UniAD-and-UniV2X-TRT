@@ -448,8 +448,12 @@ def main():
     parser.add_argument("--optimization-level", type=int, default=3)
     parser.add_argument("--allow-tf32", action="store_true")
     parser.add_argument("--mark-output", action="append", default=[])
+    parser.add_argument("--mark-output-alias", action="append", default=[])
     parser.add_argument("--mark-debug", action="append", default=[])
     parser.add_argument("--outputs-only", action="store_true")
+    parser.add_argument("--replace-map-position-layer")
+    parser.add_argument("--replace-map-position-input-index", type=int, default=0)
+    parser.add_argument("--keep-replaced-map-position-output", action="store_true")
     parser.add_argument("--stabilize-inverse-sigmoid", action="store_true")
     parser.add_argument("--stabilize-layernorm", action="store_true")
     parser.add_argument("--force-fp32-layer-regex", action="append", default=[])
@@ -478,6 +482,57 @@ def main():
     if not parsed or parser_errors:
         raise RuntimeError({"parsed": parsed, "errors": parser_errors})
 
+    map_position_replacement = None
+    if args.replace_map_position_layer:
+        matching_layers = [
+            network.get_layer(index)
+            for index in range(network.num_layers)
+            if network.get_layer(index).name == args.replace_map_position_layer
+        ]
+        if len(matching_layers) != 1:
+            raise RuntimeError(
+                "Expected one TensorRT layer named %s, found %d"
+                % (args.replace_map_position_layer, len(matching_layers))
+            )
+        target_layer = matching_layers[0]
+        input_index = args.replace_map_position_input_index
+        if input_index < 0 or input_index >= target_layer.num_inputs:
+            raise RuntimeError(
+                "Invalid input index %d for %s with %d inputs"
+                % (input_index, target_layer.name, target_layer.num_inputs)
+            )
+        replaced_tensor = target_layer.get_input(input_index)
+        if replaced_tensor is None:
+            raise RuntimeError(
+                "Layer %s input %d is empty" % (target_layer.name, input_index)
+            )
+        expected_shape = (1, 40000, 256)
+        replaced_shape = tuple(int(dim) for dim in replaced_tensor.shape)
+        if replaced_shape != expected_shape:
+            raise RuntimeError(
+                "Unexpected map-position shape for %s input %d: %s"
+                % (target_layer.name, input_index, replaced_shape)
+            )
+        map_position_input = network.add_input(
+            "map_position_encoding", trt.float32, expected_shape
+        )
+        if map_position_input is None:
+            raise RuntimeError("Failed to add map_position_encoding input")
+        target_layer.set_input(input_index, map_position_input)
+        if args.keep_replaced_map_position_output:
+            network.mark_output(replaced_tensor)
+        map_position_replacement = {
+            "layer": target_layer.name,
+            "input_index": input_index,
+            "replaced_tensor": replaced_tensor.name,
+            "replaced_shape": list(replaced_shape),
+            "replacement_input": map_position_input.name,
+            "replacement_shape": list(expected_shape),
+            "kept_replaced_tensor_as_output": (
+                args.keep_replaced_map_position_output
+            ),
+        }
+
     tensors = {}
     for index in range(network.num_inputs):
         tensor = network.get_input(index)
@@ -488,7 +543,23 @@ def main():
             tensor = layer.get_output(output_index)
             if tensor is not None:
                 tensors[tensor.name] = tensor
-    requested_tensors = args.mark_output + args.mark_debug
+    output_aliases = []
+    for specification in args.mark_output_alias:
+        if "=" not in specification:
+            raise ValueError(
+                "--mark-output-alias must use SOURCE=ALIAS: %s" % specification
+            )
+        source_name, alias = specification.split("=", 1)
+        if not source_name or not alias:
+            raise ValueError(
+                "--mark-output-alias must use SOURCE=ALIAS: %s" % specification
+            )
+        output_aliases.append((source_name, alias))
+    requested_tensors = (
+        args.mark_output
+        + args.mark_debug
+        + [source_name for source_name, _ in output_aliases]
+    )
     missing_debug_tensors = [name for name in requested_tensors if name not in tensors]
     if missing_debug_tensors:
         raise RuntimeError(
@@ -508,6 +579,19 @@ def main():
         if name not in marked_names:
             network.mark_output(tensors[name])
             marked_names.add(name)
+    output_alias_report = []
+    for source_name, alias in output_aliases:
+        if alias in tensors or alias in marked_names:
+            raise RuntimeError("TensorRT tensor name already exists: %s" % alias)
+        identity = network.add_identity(tensors[source_name])
+        if identity is None:
+            raise RuntimeError("Failed to alias TensorRT tensor %s" % source_name)
+        identity.name = "OutputAlias_%s" % alias
+        output_tensor = identity.get_output(0)
+        output_tensor.name = alias
+        network.mark_output(output_tensor)
+        marked_names.add(alias)
+        output_alias_report.append({"source": source_name, "alias": alias})
     for name in args.mark_debug:
         network.mark_debug(tensors[name])
 
@@ -632,8 +716,10 @@ def main():
         "optimization_level": args.optimization_level,
         "tf32_enabled": args.allow_tf32,
         "marked_outputs": args.mark_output,
+        "output_aliases": output_alias_report,
         "marked_debug_tensors": args.mark_debug,
         "outputs_only": args.outputs_only,
+        "map_position_replacement": map_position_replacement,
         "inverse_sigmoid_constraints": inverse_sigmoid_constraints,
         "layernorm_constraints": layernorm_constraints,
         "regex_constraints": regex_constraints,

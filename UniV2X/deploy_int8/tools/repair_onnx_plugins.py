@@ -101,6 +101,7 @@ def main():
     parser.add_argument("--repair-index-add-scatter", action="store_true")
     parser.add_argument("--materialize-camera-slots", action="store_true")
     parser.add_argument("--drop-map-metric-outputs", action="store_true")
+    parser.add_argument("--drop-traced-map-postprocess", action="store_true")
     args = parser.parse_args()
 
     source = os.path.abspath(args.input)
@@ -212,14 +213,20 @@ def main():
             scatter_reductions.append(node.name)
 
     graph_pruning = None
+    dropped_outputs = set()
     if args.drop_map_metric_outputs:
+        dropped_outputs.update(MAP_METRIC_OUTPUTS)
+    if args.drop_traced_map_postprocess:
+        dropped_outputs.add("lane_pred")
+    if dropped_outputs:
         original_inputs = {value.name for value in model.graph.input}
-        graph_pruning = prune_to_outputs(model, MAP_METRIC_OUTPUTS)
+        graph_pruning = prune_to_outputs(model, dropped_outputs)
         retained_inputs = {value.name for value in model.graph.input}
         graph_pruning["removed_inputs"] = sorted(original_inputs - retained_inputs)
-        expected_removed = {"gt_lane_labels", "gt_lane_masks"}
-        if set(graph_pruning["removed_inputs"]) != expected_removed:
-            raise RuntimeError(graph_pruning)
+        if args.drop_map_metric_outputs:
+            expected_removed = {"gt_lane_labels", "gt_lane_masks"}
+            if set(graph_pruning["removed_inputs"]) != expected_removed:
+                raise RuntimeError(graph_pruning)
 
     os.makedirs(os.path.dirname(output), exist_ok=True)
     external_name = os.path.basename(output) + ".data"

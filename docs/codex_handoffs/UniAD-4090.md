@@ -8,6 +8,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 
 - Working root: `/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806`
 - Original checkpoint: `/home/lixingfeng/data/ckpts/uniad_base_e2e.pth`
+- Trained tiny checkpoint: `repro_20260806/artifacts/stage2/epoch_20.pth`, SHA-256 `88289ecdf2a7576a4c6bd1c0879d15ffba5b93fc22221872fef6196638d91484`
 - Dataset: `/data/uniad_data` through local read-only links
 - PyTorch environment: existing isolated UniAD/PyTorch 1.12 environment
 - Deployment environment: `modelopt_uniad_dl4agx`
@@ -20,6 +21,10 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Item | State | Evidence/notes |
 | --- | --- | --- |
 | NVIDIA tiny/random ONNX reference flow | Completed as a deployment smoke | All three precisions ran; random weights make its planning accuracy non-physical and unsuitable for accuracy reproduction. |
+| Trained UniAD-tiny stage 1/2 | Completed | Stage 1 epoch 6 and stage 2 epoch 20 follow `documents/train_export.md`; both training and deployment `ckpts` entries resolve to one registry. |
+| Trained UniAD-tiny PyTorch full validation | Completed | 6019 frames; detection, tracking, map, occupancy, planning, and latency are recorded below. |
+| Trained UniAD-tiny ONNX/calibration/engines | Completed | Real epoch-20 checkpoint exported with the tutorial TRT config; 64 training samples and FP32/FP16/INT8(EQ)+FP16 engines are available locally. |
+| Trained UniAD-tiny temporal TensorRT evaluation | Blocked on graph-internal DDS | Fixed external track shapes and an opt=1150 rebuild do not remove active-track `NonZero`/Myelin reconfiguration. Independent-frame and `trtexec` latency are valid diagnostics, but no full temporal engine metric is accepted yet. |
 | UniAD-base config and checkpoint adaptation | Completed | Uses the base graph, base input metadata, and dynamic temporal-track profile; the checkpoint is not inserted into the tiny graph. |
 | Base FP32 ONNX export | Completed | Local artifact excluded from Git. |
 | Base explicit-QDQ INT8 graph | Completed | ONNX check passes with expected TRT plugin-domain handling; MatMul weights/activations are excluded from INT8. |
@@ -100,6 +105,41 @@ The full-validation enqueue trend is `FP32 > FP16 > INT8`, matching NVIDIA's qua
 
 The current NVIDIA-style C++ runner reconstructs planning and decoded boxes but only emits a full planning evaluation. It does not reconstruct the Python dataset's complete detection/tracking/map result bundle, so no TensorRT detection/tracking score is claimed here.
 
+### Trained UniAD-tiny epoch 20
+
+The training and export chain follows `documents/train_export.md`: tiny stage 1 runs to epoch 6, stage 2 runs to epoch 20, and ONNX export invokes `tools/export_onnx.py` with `projects/configs/stage2_e2e/tiny_imgx0.25_e2e_trt_p.py`. This run uses the real trained checkpoint, not NVIDIA's legal-placeholder random ONNX.
+
+Both local checkpoint entry points resolve to `repro_20260806/artifacts/checkpoints`:
+
+- `UniAD/ckpts`
+- `UniAD_train/ckpts`
+
+The registry exposes `tiny_imgx0.25_e2e_ep20.pth` and the tutorial-compatible alias `tiny_imgx0.25_e2e.pth`, both resolving to the 805,231,233-byte epoch-20 checkpoint. Original files under `/data` remain read-only symlink targets.
+
+| PyTorch full-validation metric | Value |
+| --- | ---: |
+| frames | 6019 |
+| mAP / NDS | 0.154061 / 0.300379 |
+| AMOTA / AMOTP | 0.080732 / 1.787528 |
+| map drivable / lanes IoU | 0.716173 / 0.337398 |
+| map divider / crossing / contour IoU | 0.253431 / 0.125746 / 0.337554 |
+| occupancy IoU class 0 / 1 | 51.4 / 48.6 |
+| planning avg. L2 | 0.826428 m |
+| planning point / box collision | 0.013845% / 0.221521% |
+| forward mean / p50 / p95 | 230.429 / 185.852 / 490.950 ms |
+| end-to-end mean / p50 / p95 | 270.950 / 226.852 / 534.329 ms |
+
+This retained baseline predates the native p99 patch, so p99 is not inferred from p95. Future baseline timing reruns emit p99 directly.
+
+The exported real-weight graph has a 64-sample training calibration package at `trained_tiny_epoch20/calibration/calib_data_shape0_901.npz`. The INT8 graph passes explicit-QDQ validation with MatMul excluded and finite scales.
+
+| `trtexec`, 100 iterations at track shape 901 | FP32 | FP16 | INT8(EQ)+FP16 |
+| --- | ---: | ---: | ---: |
+| GPU compute mean / p50 / p99 | 13.507 / 13.332 / 17.194 ms | 9.471 / 9.417 / 11.166 ms | 10.008 / 9.917 / 12.040 ms |
+| overall mean / p50 / p99 | 14.675 / 14.502 / 18.362 ms | 10.764 / 10.709 / 12.521 ms | 11.185 / 11.098 / 13.250 ms |
+
+On this RTX 4090, trained-tiny steady-state compute trends `FP32 > INT8 > FP16`; INT8 is about 5.7% slower than FP16, so this does not reproduce NVIDIA's `FP32 > FP16 > INT8` latency ordering. A 20-frame temporal FP32 run with external tracks fixed to 1150 and an engine rebuilt at `min=opt=max=1150` still produced repeated 10.25-10.43 s enqueue calls whenever active tracks were present. Frames without active temporal state remained about 13-16 ms. The smoke planning L2 was 1.042990 m and trajectory distance to PyTorch was 0.185049 m, but these are not accepted as a full temporal validation result because the recurrent runtime is not deployable at that latency.
+
 ## Official-patch and base-port audit
 
 The base deployment was not exported from unmodified UniAD code. It uses the same patched deployment tree required by NVIDIA's tutorial:
@@ -126,6 +166,16 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 3. Replace the in-memory monolithic calibration collector with a bounded-memory streaming or sharded protocol before expanding UniAD-base calibration; one 8-sample NPZ is already about 1.2 GiB.
 4. Rebuild and rerun INT8 after the larger representative calibration is available; retain the current `calib8` lineage for comparison.
 5. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 007 - 2026-08-10T20:19:06-07:00
+
+- Verified the trained tiny pipeline against every training/export command in `documents/train_export.md`; export uses the real epoch-20 checkpoint and `tiny_imgx0.25_e2e_trt_p.py`.
+- Unified `UniAD/ckpts` and `UniAD_train/ckpts` through one checkpoint registry while retaining the old `/data/ckpts` link as `ckpts.data-original`.
+- Recorded the complete 6019-frame trained-tiny PyTorch baseline and the real-weight ONNX, 64-sample calibration, explicit-QDQ validation, and three engine builds.
+- Measured all three engines with 100-iteration `trtexec`; FP16 is faster than INT8 on this RTX 4090, unlike the NVIDIA Orin-X ordering.
+- Proved that changing the external profile optimum from 901 to 1150 does not remove the recurrent 10-second spikes; the remaining blocker is graph-internal active-track DDS/Myelin reconfiguration, not CPU fallback or an external profile miss.
 
 ---
 
