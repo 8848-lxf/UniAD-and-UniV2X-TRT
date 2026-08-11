@@ -91,13 +91,19 @@ __global__ void resizing_img_kernel(float* images, float* processed_images, cons
         float ratio_w = width / (1.0f*resized_w);
         float ratio_h = height / (1.0f*resized_h);
 
-        int w_l = std::floor(ratio_w * w);
-        int h_l = std::floor(ratio_h * h);
-        int w_h = std::ceil(ratio_w * w);
-        int h_h = std::ceil(ratio_h * h);
+        // Match OpenCV INTER_LINEAR, which MMCV uses in the validation
+        // pipeline. Pixel centers map with a half-pixel offset.
+        float source_w = (w + 0.5f) * ratio_w - 0.5f;
+        float source_h = (h + 0.5f) * ratio_h - 0.5f;
+        source_w = fminf(fmaxf(source_w, 0.0f), width - 1.0f);
+        source_h = fminf(fmaxf(source_h, 0.0f), height - 1.0f);
+        int w_l = static_cast<int>(floorf(source_w));
+        int h_l = static_cast<int>(floorf(source_h));
+        int w_h = w_l + 1 < width ? w_l + 1 : w_l;
+        int h_h = h_l + 1 < height ? h_l + 1 : h_l;
 
-        float w_weight = (ratio_w * w) - w_l;
-        float h_weight = (ratio_h * h) - h_l;
+        float w_weight = source_w - w_l;
+        float h_weight = source_h - h_l;
 
         float img_a = images[h_l * (width*channels) + w_l * (channels) + c];
         float img_b = images[h_l * (width*channels) + w_h * (channels) + c];

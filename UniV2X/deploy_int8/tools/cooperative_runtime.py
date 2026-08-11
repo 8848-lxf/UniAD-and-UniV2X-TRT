@@ -23,7 +23,10 @@ def first_tensor(value):
 
 
 def metadata(agent_data):
-    return agent_data["img_metas"][0].data[0][0]
+    value = agent_data["img_metas"]
+    if isinstance(value, dict):
+        return value
+    return value[0].data[0][0]
 
 
 def agent_tensor(agent_data, key, device, dtype=None):
@@ -55,6 +58,7 @@ def denormalize(reference, pc_range):
 class AgentState:
     device: torch.device
     fixed_track_count: int = 0
+    legacy_can_bus_deltas: bool = False
 
     def __post_init__(self):
         self.reset()
@@ -76,18 +80,27 @@ class AgentState:
         scene_token = str(meta["scene_token"])
         new_scene = scene_token != self.scene_token
         if new_scene:
+            previous_position = self.prev_position
+            previous_angle = self.prev_angle
             self.reset()
+            if self.legacy_can_bus_deltas:
+                self.prev_position = previous_position
+                self.prev_angle = previous_angle
 
         image = agent_image(agent_data, self.device)
         lidar2img = np.asarray(meta["lidar2img"], dtype=np.float32)[None]
         if lidar2img.shape[1] == 1:
-            lidar2img = np.repeat(lidar2img, 6, axis=1)
+            # The source graph broadcasts one image feature into six encoder
+            # slots, but only slot zero has a projection matrix.
+            padded_lidar2img = np.zeros((1, 6, 4, 4), dtype=np.float32)
+            padded_lidar2img[:, 0] = lidar2img[:, 0]
+            lidar2img = padded_lidar2img
         can_bus_now = np.asarray(meta["can_bus"], dtype=np.float32).copy()
         can_bus = can_bus_now.copy()
-        if new_scene or self.prev_position is None:
+        if new_scene and not self.legacy_can_bus_deltas:
             can_bus[:3] = 0.0
             can_bus[-1] = 0.0
-        else:
+        elif self.prev_position is not None:
             can_bus[:3] -= self.prev_position
             can_bus[-1] -= self.prev_angle
         self.prev_position = can_bus_now[:3].copy()
@@ -207,7 +220,7 @@ def prepare_cooperative_inputs(
     tracks = [value[keep] for value in tracks]
     ego_locations = ego_locations[keep]
 
-    if tracks[0].shape[0] == 0:
+    if tracks[0].shape[0] == 0 and not fixed_coop_count:
         raise RuntimeError("No active infrastructure query remains after ego removal")
 
     vehicle_locations = denormalize(ego_state.tracks[1], EGO_PC_RANGE)

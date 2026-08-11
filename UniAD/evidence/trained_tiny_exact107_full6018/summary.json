@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "model": "trained UniAD-tiny epoch 20",
+  "checkpoint_sha256": "88289ecdf2a7576a4c6bd1c0879d15ffba5b93fc22221872fef6196638d91484",
+  "evaluation_contract": "6018 deployment frames with corrected per-scene temporal reset and identical deployment ground truth",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "toolchain": "TensorRT 10.7 exact, Conda CUDA 11.8 isolated runtime",
+  "pytorch_deployment_reference": {
+    "planning_avg_l2_m": 0.7807382961960799,
+    "planning_point_collision_percent": 0.08585355045973192,
+    "planning_box_collision_percent": 0.667442118090174,
+    "source": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/evaluation/deployment_pytorch_trtp_full6018/planning_metrics_scene_reset_gt.json"
+  },
+  "tensorrt": {
+    "fp32": {
+      "planning_avg_l2_m": 0.7804199336968433,
+      "planning_point_collision_percent": 0.08585355045973192,
+      "planning_box_collision_percent": 0.667442118090174,
+      "planning_mse_m": 0.0037721304688602686,
+      "enqueue_mean_p50_p99_ms": [17.371234, 17.258495, 19.669227],
+      "forward_mean_p50_p99_ms": [21.140803, 20.984258, 23.883671],
+      "end_to_end_mean_p50_p99_ms": [98.305749, 97.042075, 112.048823]
+    },
+    "fp16": {
+      "planning_avg_l2_m": 0.7580378879209122,
+      "planning_point_collision_percent": 0.09139248919906945,
+      "planning_box_collision_percent": 0.63143901628448,
+      "planning_mse_m": 0.11917705833911896,
+      "enqueue_mean_p50_p99_ms": [13.043264, 12.907328, 16.895544],
+      "forward_mean_p50_p99_ms": [17.027235, 16.858556, 23.286952],
+      "end_to_end_mean_p50_p99_ms": [93.600415, 92.367102, 107.089594]
+    },
+    "int8_eq_fp16": {
+      "planning_avg_l2_m": 0.8014840939230107,
+      "planning_point_collision_percent": 0.08585355045973192,
+      "planning_box_collision_percent": 0.8086850559432812,
+      "planning_mse_m": 0.2746257781982422,
+      "enqueue_mean_p50_p99_ms": [12.888856, 12.800384, 16.75011],
+      "forward_mean_p50_p99_ms": [16.949338, 16.787833, 23.271639],
+      "end_to_end_mean_p50_p99_ms": [93.304099, 91.885102, 108.209889]
+    }
+  },
+  "latency_trend": "FP32 > FP16 > INT8(EQ)+FP16 for enqueue and synchronized inference call",
+  "full_task_metric_limitation": "The NVIDIA tutorial C++ graph/runner emits planning, temporal state, segmentation logits, and decoded boxes but does not reconstruct the complete Python detection/tracking/map/occupancy result bundle. Engine mAP, AMOTA, map IoU, and occupancy IoU are therefore unavailable rather than zero.",
+  "raw_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt107/evaluation"
+}

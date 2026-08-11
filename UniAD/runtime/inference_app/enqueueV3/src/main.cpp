@@ -265,14 +265,40 @@ void assign_temporal_track_tensor(
     }
 }
 
+template <typename T>
+void pad_initial_track_tensor(
+    std::vector<T>& values,
+    std::vector<TRT_INT_TYPE>& shape,
+    int fixed_track_count,
+    const char* tensor_name) {
+    const size_t actual_rows = static_cast<size_t>(shape.at(0));
+    const size_t row_width = std::accumulate(
+        shape.begin() + 1, shape.end(), size_t{1}, std::multiplies<size_t>());
+    if (actual_rows > static_cast<size_t>(fixed_track_count)) {
+        fprintf(stderr, "[ERROR] Initial temporal input %s has %zu rows, exceeding fixed capacity %d.\n",
+                tensor_name, actual_rows, fixed_track_count);
+        std::abort();
+    }
+    std::fill(
+        values.begin() + actual_rows * row_width,
+        values.begin() + static_cast<size_t>(fixed_track_count) * row_width,
+        static_cast<T>(-10000));
+    shape[0] = fixed_track_count;
+}
+
 void set_fixed_track_input_shapes(UniAD::KernelInput& input, int fixed_track_count) {
     if (fixed_track_count <= 0) return;
-    const char* names[] = {
-        "prev_track_intances0", "prev_track_intances1", "prev_track_intances3",
-        "prev_track_intances4", "prev_track_intances5", "prev_track_intances6",
-        "prev_track_intances8", "prev_track_intances9", "prev_track_intances11",
-        "prev_track_intances12", "prev_track_intances13"};
-    for (const char* name : names) input.input_shapes.at(name)[0] = fixed_track_count;
+    pad_initial_track_tensor(input.prev_track_intances0, input.input_shapes.at("prev_track_intances0"), fixed_track_count, "prev_track_intances0");
+    pad_initial_track_tensor(input.prev_track_intances1, input.input_shapes.at("prev_track_intances1"), fixed_track_count, "prev_track_intances1");
+    pad_initial_track_tensor(input.prev_track_intances3, input.input_shapes.at("prev_track_intances3"), fixed_track_count, "prev_track_intances3");
+    pad_initial_track_tensor(input.prev_track_intances4, input.input_shapes.at("prev_track_intances4"), fixed_track_count, "prev_track_intances4");
+    pad_initial_track_tensor(input.prev_track_intances5, input.input_shapes.at("prev_track_intances5"), fixed_track_count, "prev_track_intances5");
+    pad_initial_track_tensor(input.prev_track_intances6, input.input_shapes.at("prev_track_intances6"), fixed_track_count, "prev_track_intances6");
+    pad_initial_track_tensor(input.prev_track_intances8, input.input_shapes.at("prev_track_intances8"), fixed_track_count, "prev_track_intances8");
+    pad_initial_track_tensor(input.prev_track_intances9, input.input_shapes.at("prev_track_intances9"), fixed_track_count, "prev_track_intances9");
+    pad_initial_track_tensor(input.prev_track_intances11, input.input_shapes.at("prev_track_intances11"), fixed_track_count, "prev_track_intances11");
+    pad_initial_track_tensor(input.prev_track_intances12, input.input_shapes.at("prev_track_intances12"), fixed_track_count, "prev_track_intances12");
+    pad_initial_track_tensor(input.prev_track_intances13, input.input_shapes.at("prev_track_intances13"), fixed_track_count, "prev_track_intances13");
 }
 
 void temporal_info_assign(

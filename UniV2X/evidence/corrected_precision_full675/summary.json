@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "model": "UniV2X cooperative stage-2 E2E",
+  "evaluation_contract": "complete 675-frame V2X-Seq validation set, eight DataLoader workers for corrected TensorRT runs",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "metrics": {
+    "pytorch_fp32": {
+      "map_nds": [0.051553577003612606, 0.05135911904191456],
+      "amota_amotp": [0.10953531092979495, 1.7760343122798767],
+      "map_iou_drivable_lanes_divider_crossing_contour": [0.7566360831260681, 0.1773560494184494, null, 0.19688177108764648, 0.15462766587734222],
+      "occupancy_iou": [22.540825605392456, 25.79616904258728],
+      "occupancy_pq": [2.04040688, 0.06320416],
+      "occupancy_sq": [63.21260929, 60.2591455],
+      "occupancy_rq": [3.22784819, 0.10488725],
+      "planning_mean_l2_m": 2.8640605092048643,
+      "planning_point_box_collision_percent": [0.074074073927477, 0.48888889141380787],
+      "forward_mean_p50_p99_ms": [805.5952727396525, 760.8248442411423, 1290.9370543807756],
+      "end_to_end_mean_p50_p99_ms": [2330.758829923873, 925.1714441925287, 8927.111897729337]
+    },
+    "tensorrt_fp32": {
+      "map_nds": [0.05176317349701408, 0.051957887562488494],
+      "amota_amotp": [0.11242209221526896, 1.7763549357265107],
+      "map_iou_drivable_lanes_divider_crossing_contour": [0.7590909004211426, 0.18112020194530487, null, 0.2030264437198639, 0.15848296880722046],
+      "occupancy_iou": [21.84687852859497, 25.473710894584656],
+      "occupancy_pq": [2.02141684, 0.07252471],
+      "occupancy_sq": [61.82003021, 60.53698063],
+      "occupancy_rq": [3.26984115, 0.11980232],
+      "planning_mean_l2_m": 2.8565038800239564,
+      "planning_point_box_collision_percent": [0.0592592591419816, 0.3703703742939979],
+      "engine_sum_mean_p50_p99_ms": [290.1199399003091, 289.38766941428185, 300.2879900485277],
+      "forward_mean_p50_p99_ms": [316.45406403273114, 315.8348258584738, 337.0228832215071],
+      "end_to_end_mean_p50_p99_ms": [826.2028414471687, 456.3310816884041, 3413.872784823181]
+    },
+    "tensorrt_fp16": {
+      "map_nds": [0.04972042775238304, 0.050909651482496245],
+      "amota_amotp": [0.09251474814435638, 1.7899943148528907],
+      "map_iou_drivable_lanes_divider_crossing_contour": [0.7315239310264587, 0.14992249011993408, null, 0.18188554048538208, 0.12437828630208969],
+      "occupancy_iou": [22.295106947422028, 25.325477123260498],
+      "occupancy_pq": [1.97053663, 0.06696545],
+      "occupancy_sq": [61.88470721, 60.97660661],
+      "occupancy_rq": [3.18420641, 0.10982153],
+      "planning_mean_l2_m": 2.890399217605591,
+      "planning_point_box_collision_percent": [0.0444444443564862, 0.37037036614492536],
+      "engine_sum_mean_p50_p99_ms": [228.80000860238349, 228.1537912786007, 239.75285559892654],
+      "forward_mean_p50_p99_ms": [255.06817361211958, 253.57528030872345, 281.01607009768486],
+      "end_to_end_mean_p50_p99_ms": [779.2901320965918, 486.43134720623493, 2762.912338189786]
+    },
+    "tensorrt_int8_eq_fp16": {
+      "map_nds": [0.04902687982452021, 0.0498871604721706],
+      "amota_amotp": [0.08799511074197273, 1.7965290894373442],
+      "map_iou_drivable_lanes_divider_crossing_contour": [0.7289673686027527, 0.14543114602565765, null, 0.17537692189216614, 0.12111203372478485],
+      "occupancy_iou": [21.845296025276184, 24.831214547157288],
+      "occupancy_pq": [1.7235487699508667, 0.05781685467809439],
+      "occupancy_sq": [62.26319670677185, 60.973960161209106],
+      "occupancy_rq": [2.7681661769747734, 0.09482220630161464],
+      "planning_mean_l2_m": 2.8292033314704894,
+      "planning_point_box_collision_percent": [0.0296296295709908, 0.3407407400663942],
+      "engine_sum_mean_p50_p99_ms": [198.70311689797703, 196.80440612137318, 214.38184559345245],
+      "forward_mean_p50_p99_ms": [227.40991928877722, 225.84210336208344, 256.5229557827118],
+      "end_to_end_mean_p50_p99_ms": [862.9005572324945, 378.02559323608875, 4733.538096398121]
+    }
+  },
+  "calibration": "Separate infrastructure and ego entropy calibration from 152 of 1521 training frames (about 10 percent); validation data was not used.",
+  "latency_trend": "Corrected TensorRT full forward FP32 316.454 ms > FP16 255.068 ms > INT8 227.410 ms. End-to-end mean is host/DataLoader limited and non-monotonic.",
+  "raw_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810"
+}

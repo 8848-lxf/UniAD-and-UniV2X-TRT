@@ -19,7 +19,6 @@ if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
 from cooperative_runtime import prepare_cooperative_inputs
-from trt_engine import TensorRTEngine
 from trt_runtime import INPUT_NAMES, TRACK_OUTPUT_NAMES, empty_track_state
 
 
@@ -242,7 +241,9 @@ def load_templates(directory, device):
 
 
 def filtered_inputs(engine, values):
-    return {name: values[name] for name in engine.input_names}
+    # TensorRTEngine injects graph-owned static inputs such as the cached map
+    # position encoding. Keep them absent here so that injection can run.
+    return {name: values[name] for name in engine.input_names if name in values}
 
 
 def nonfinite(outputs):
@@ -289,6 +290,8 @@ def planning_l2(rows, transforms):
 
 def main():
     args = parse_args()
+    from trt_engine import TensorRTEngine
+
     with open(os.path.join(args.capture_dir, "manifest.json")) as handle:
         manifest = json.load(handle)
     device = torch.device("cuda")

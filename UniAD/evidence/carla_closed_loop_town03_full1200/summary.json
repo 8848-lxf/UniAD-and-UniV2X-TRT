@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scope": "Custom model-controlled Town03 route, 1200 frames, 60 simulated seconds, inference every 10 frames, no traffic. This is not an official Bench2Drive leaderboard score.",
+  "route": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml",
+  "runs": {
+    "pytorch_fp32": {
+      "progress_percent": 27.900676075943647,
+      "final_distance_m": 49.55884552001953,
+      "collision_callbacks": 1101,
+      "lane_invasions": 18,
+      "mean_speed_mps": 0.3640136852352926,
+      "forward_mean_p50_p99_ms": [94.23162947807994, 91.73402935266495, 143.97239740937934],
+      "service_end_to_end_mean_p50_p99_ms": [261.5871113576308, 260.7245799154043, 306.7523119971155]
+    },
+    "tensorrt_fp32": {
+      "progress_percent": 27.889472976058187,
+      "final_distance_m": 49.567447662353516,
+      "collision_callbacks": 1096,
+      "lane_invasions": 18,
+      "mean_speed_mps": 0.36396915453082507,
+      "forward_mean_p50_p99_ms": [20.374170449726723, 19.64098960161209, 29.73128516227006],
+      "service_end_to_end_mean_p50_p99_ms": [214.2383540753557, 204.63581942021847, 266.63083687424654]
+    },
+    "tensorrt_fp16": {
+      "progress_percent": 27.94172099899627,
+      "final_distance_m": 49.52748489379883,
+      "collision_callbacks": 1093,
+      "lane_invasions": 18,
+      "mean_speed_mps": 0.3647670045628957,
+      "forward_mean_p50_p99_ms": [17.869382517553177, 16.83782786130905, 29.898562319576723],
+      "service_end_to_end_mean_p50_p99_ms": [197.03694916635501, 192.9331999272108, 245.4303688183426]
+    },
+    "tensorrt_int8_eq_fp16": {
+      "progress_percent": 27.994565392454483,
+      "final_distance_m": 49.497352600097656,
+      "collision_callbacks": 1092,
+      "lane_invasions": 18,
+      "mean_speed_mps": 0.36387882317629966,
+      "forward_mean_p50_p99_ms": [18.29944131504588, 15.95395989716053, 37.41563457995652],
+      "service_end_to_end_mean_p50_p99_ms": [194.96926425823145, 191.44446402788162, 264.57954093813896]
+    }
+  },
+  "latency_definition": "Steady state excludes the first model inference. Service end-to-end includes request NPZ loading, image preprocessing, recurrent state update, output transfer, and JSON response.",
+  "driving_result_interpretation": "All variants follow the same initial trajectory and then stall in repeated contact at about 28 percent route progress. Event callback counts are diagnostic, not unique collisions or an official driving score.",
+  "raw_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/carla_closed_loop"
+}

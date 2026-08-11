@@ -24,7 +24,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Trained UniAD-tiny stage 1/2 | Completed | Stage 1 epoch 6 and stage 2 epoch 20 follow `documents/train_export.md`; both training and deployment `ckpts` entries resolve to one registry. |
 | Trained UniAD-tiny PyTorch full validation | Completed | 6019 frames; detection, tracking, map, occupancy, planning, and latency are recorded below. |
 | Trained UniAD-tiny ONNX/calibration/engines | Completed | Real epoch-20 checkpoint exported with the tutorial TRT config; 64 training samples and FP32/FP16/INT8(EQ)+FP16 engines are available locally. |
-| Trained UniAD-tiny temporal TensorRT evaluation | Blocked on graph-internal DDS | Fixed external track shapes and an opt=1150 rebuild do not remove active-track `NonZero`/Myelin reconfiguration. Independent-frame and `trtexec` latency are valid diagnostics, but no full temporal engine metric is accepted yet. |
+| Trained UniAD-tiny temporal TensorRT evaluation | Completed | Corrected initial padding, OpenCV-compatible resize, scene reset, exact TensorRT 10.7 runtime, and fixed 1300/1600 contracts completed 6018 frames for FP32/FP16/INT8. |
 | UniAD-base config and checkpoint adaptation | Completed | Uses the base graph, base input metadata, and dynamic temporal-track profile; the checkpoint is not inserted into the tiny graph. |
 | Base FP32 ONNX export | Completed | Local artifact excluded from Git. |
 | Base explicit-QDQ INT8 graph | Completed | ONNX check passes with expected TRT plugin-domain handling; MatMul weights/activations are excluded from INT8. |
@@ -35,7 +35,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Base TensorRT FP32 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite metrics and no second-scale latency spikes. |
 | Base TensorRT FP16 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite planning and latency summaries. |
 | Base TensorRT INT8 fixed-1150 full evaluation | Completed, preliminary calibration | All 6018 frames completed; its evidence path explicitly records the current 8-sample training calibration. |
-| CARLA closed-loop evaluation | Not completed | Existing CARLA assets are partial/reused; the full download was explicitly paused. |
+| CARLA closed-loop evaluation | Completed as a custom-route diagnostic | PyTorch and all three TensorRT precisions run for 1200 Town03 frames with identical sensors/controller. This is not an official Bench2Drive score because the complete official assets/protocol are unavailable. |
 
 ## Verified results
 
@@ -138,7 +138,38 @@ The exported real-weight graph has a 64-sample training calibration package at `
 | GPU compute mean / p50 / p99 | 13.507 / 13.332 / 17.194 ms | 9.471 / 9.417 / 11.166 ms | 10.008 / 9.917 / 12.040 ms |
 | overall mean / p50 / p99 | 14.675 / 14.502 / 18.362 ms | 10.764 / 10.709 / 12.521 ms | 11.185 / 11.098 / 13.250 ms |
 
-On this RTX 4090, trained-tiny steady-state compute trends `FP32 > INT8 > FP16`; INT8 is about 5.7% slower than FP16, so this does not reproduce NVIDIA's `FP32 > FP16 > INT8` latency ordering. A 20-frame temporal FP32 run with external tracks fixed to 1150 and an engine rebuilt at `min=opt=max=1150` still produced repeated 10.25-10.43 s enqueue calls whenever active tracks were present. Frames without active temporal state remained about 13-16 ms. The smoke planning L2 was 1.042990 m and trajectory distance to PyTorch was 0.185049 m, but these are not accepted as a full temporal validation result because the recurrent runtime is not deployable at that latency.
+The table above is retained as the original `trtexec` diagnostic. It used the old shape-901 standalone contract, where FP16 was faster than INT8 on this RTX 4090. The corrected temporal application supersedes it for end-to-end deployment evaluation.
+
+### Corrected trained-tiny temporal deployment, full 6018 frames
+
+The accepted rerun uses the exact TensorRT 10.7 runtime expected by the NVIDIA project, OpenCV-compatible half-pixel image resize, real `-10000` padding of the initial temporal tensors, fixed 1300/1600 capacities, and per-scene reset metadata. All 6018 frames completed with finite output.
+
+| Metric | Deployment PyTorch | TensorRT FP32 | TensorRT FP16 | TensorRT INT8(EQ)+FP16 |
+| --- | ---: | ---: | ---: | ---: |
+| planning avg. L2 | 0.780738 m | 0.780420 m | 0.758038 m | 0.801484 m |
+| planning point collision | 0.085854% | 0.085854% | 0.091392% | 0.085854% |
+| planning box collision | 0.667442% | 0.667442% | 0.631439% | 0.808685% |
+| planning MSE vs PyTorch | 0 | 0.003772 m | 0.119177 m | 0.274626 m |
+| enqueue mean / p50 / p99 | n/a | 17.371 / 17.258 / 19.669 ms | 13.043 / 12.907 / 16.896 ms | 12.889 / 12.800 / 16.750 ms |
+| synchronized forward mean / p50 / p99 | n/a | 21.141 / 20.984 / 23.884 ms | 17.027 / 16.859 / 23.287 ms | 16.949 / 16.788 / 23.272 ms |
+| end-to-end mean / p50 / p99 | n/a | 98.306 / 97.042 / 112.049 ms | 93.600 / 92.367 / 107.090 ms | 93.304 / 91.885 / 108.210 ms |
+
+The accepted enqueue/forward ordering is `FP32 > FP16 > INT8`, matching the NVIDIA example qualitatively. Relative to FP32 enqueue, FP16 is `1.33x` faster and INT8 is `1.35x` faster; INT8 is only `1.01x` faster than FP16 on RTX 4090.
+
+This is same-checkpoint accuracy parity, not exact reproduction of NVIDIA's hidden/placeholder-checkpoint values. FP32 planning quality matches its PyTorch reference closely, but its trajectory MSE `0.003772 m` is above NVIDIA's `9.2417e-07`; FP16/INT8 MSE is also larger than the example. The official C++ graph does not reconstruct the complete Python detection/tracking/map/occupancy result bundle, so engine mAP, AMOTA, map IoU, and occupancy IoU are unavailable rather than reported as zero. The original epoch-20 PyTorch full-task scores remain in the preceding table.
+
+### CARLA Town03 model-controlled closed-loop diagnostic
+
+The original epoch-20 PyTorch checkpoint and all three TensorRT precisions use the same six synchronized RGB cameras, route XML, preprocessing, recurrent state, controller, no traffic, 1200 frames, and inference every 10 frames. The latency table excludes the first cold inference.
+
+| Backend | Route progress | Collision callbacks / lane invasions | Forward mean / p50 / p99 | Service E2E mean / p50 / p99 |
+| --- | ---: | ---: | ---: | ---: |
+| PyTorch FP32 | 27.90% | 1101 / 18 | 94.232 / 91.734 / 143.972 ms | 261.587 / 260.725 / 306.752 ms |
+| TensorRT FP32 | 27.89% | 1096 / 18 | 20.374 / 19.641 / 29.731 ms | 214.238 / 204.636 / 266.631 ms |
+| TensorRT FP16 | 27.94% | 1093 / 18 | 17.869 / 16.838 / 29.899 ms | 197.037 / 192.933 / 245.430 ms |
+| TensorRT INT8(EQ)+FP16 | 27.99% | 1092 / 18 | 18.299 / 15.954 / 37.416 ms | 194.969 / 191.444 / 264.580 ms |
+
+All variants follow the same initial trajectory and then stall in repeated contact around 28% route progress. Callback counts are repeated contact events, not unique collisions. The integration is live and model-controlled, but the reused CARLA tree does not contain the complete official Bench2Drive assets/protocol; these values must not be reported as an official closed-loop driving score. FP16 has the lowest forward mean, while INT8 has the lowest p50 and service end-to-end mean; unlike the open-loop enqueue result, CARLA INT8 mean is slightly above FP16 because its p99 tail is larger.
 
 ## Official-patch and base-port audit
 
@@ -162,10 +193,22 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 ## Resume procedure
 
 1. Trace the FP32 planning delta against PyTorch before attributing accuracy loss to reduced precision; prioritize export rewrites, plugin parity, temporal-state decoding, and result reconstruction.
-2. Add TensorRT result-bundle reconstruction if full detection/tracking/map scores are required from the engine path.
+2. Expand the ONNX output contract and add TensorRT result-bundle reconstruction if full detection/tracking/map/occupancy scores are required from the engine path; the NVIDIA tutorial graph cannot emit all of them.
 3. Replace the in-memory monolithic calibration collector with a bounded-memory streaming or sharded protocol before expanding UniAD-base calibration; one 8-sample NPZ is already about 1.2 GiB.
 4. Rebuild and rerun INT8 after the larger representative calibration is available; retain the current `calib8` lineage for comparison.
-5. Update this document and push one commit after each completed major round.
+5. Install the complete official Bench2Drive/CARLA scenario assets before requesting a formal closed-loop driving score; retain the current Town03 result only as a custom diagnostic.
+6. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 008 - 2026-08-11T08:10:51-07:00
+
+- Repaired initial temporal padding and CUDA resize parity, added strict scene resets, and rebuilt/reran the trained epoch-20 tiny graph with exact TensorRT 10.7.
+- Completed 6018/6018 frames for FP32, FP16, and INT8(EQ)+FP16 with finite planning output and native mean/p50/p99 enqueue, synchronized forward, and end-to-end latency.
+- Verified same-checkpoint FP32 planning parity (`0.780420 m` vs PyTorch `0.780738 m`) and the open-loop enqueue trend `17.371 > 13.043 > 12.889 ms`.
+- Added persistent TensorRT and PyTorch CARLA services, then completed all four 1200-frame Town03 model-controlled diagnostics on identical sensors/controller inputs.
+- Kept the CARLA result fail-closed as a custom diagnostic because complete Bench2Drive assets and the official scoring protocol are unavailable.
+- Retained small source-only summaries under `UniAD/evidence/trained_tiny_exact107_full6018` and `UniAD/evidence/carla_closed_loop_town03_full1200`; checkpoints, ONNX, engines, raw frames, and logs remain excluded.
 
 ---
 

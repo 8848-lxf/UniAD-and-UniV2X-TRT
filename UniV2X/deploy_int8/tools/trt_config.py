@@ -101,7 +101,7 @@ def make_trt_agent_config(source, cooperative=False):
     if motion_head and motion_head.get("anchor_info_path"):
         anchor_path = motion_head["anchor_info_path"]
         if not os.path.isabs(anchor_path):
-            project_root = os.path.abspath(
+            project_root = os.environ.get("UNIV2X_WORKING_ROOT") or os.path.abspath(
                 os.path.join(os.path.dirname(__file__), "..", "..")
             )
             motion_head["anchor_info_path"] = os.path.join(
