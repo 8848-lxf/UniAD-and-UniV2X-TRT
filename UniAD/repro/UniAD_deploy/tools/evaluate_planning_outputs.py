@@ -173,11 +173,22 @@ def main():
             )
         reference = reference[:frame_count]
         delta = predictions - reference
+        mean_point_l2 = float(np.linalg.norm(delta, axis=-1).mean())
+        coordinate_mse = float(np.square(delta).mean())
         result["planning_reference_frames"] = frame_count
-        result["planning_reference_avg_l2_m"] = float(
-            np.linalg.norm(delta, axis=-1).mean()
+        result["planning_output_mean_point_l2_m"] = mean_point_l2
+        result["planning_output_coordinate_mse_m2"] = coordinate_mse
+        result["planning_output_mean_squared_point_l2_m2"] = 2.0 * coordinate_mse
+        # Backward-compatible keys for reports generated before the units were
+        # made explicit. NVIDIA's table calls this value "planning MSE", but
+        # its documentation defines it as average trajectory-point L2.
+        result["planning_reference_avg_l2_m"] = mean_point_l2
+        result["planning_reference_coordinate_mse"] = coordinate_mse
+        result["planning_mse"] = mean_point_l2
+        result["planning_mse_definition"] = (
+            "NVIDIA table semantics: mean Euclidean L2 distance in meters "
+            "between TensorRT and PyTorch trajectory points; not a squared error"
         )
-        result["planning_reference_coordinate_mse"] = float(np.square(delta).mean())
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w") as handle:

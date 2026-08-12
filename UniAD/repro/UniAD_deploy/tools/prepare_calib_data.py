@@ -14,9 +14,11 @@
 # limitations under the License.
 
 import argparse
+import json
 import os
 import numpy as np
 import torch
+import torch.multiprocessing as torch_multiprocessing
 import copy
 from third_party.uniad_mmdet3d.datasets.builder import build_dataloader, build_dataset
 from third_party.uniad_mmdet3d.models.builder import build_model
@@ -75,6 +77,9 @@ def parse_args():
     parser.add_argument(
         '--dataset-split', choices=('train', 'test'), default='test',
         help='use the requested annotation split with the deterministic test pipeline')
+    parser.add_argument(
+        '--workers-per-gpu', type=int, default=8,
+        help='DataLoader workers; ordering remains deterministic because shuffle is disabled')
     parser.add_argument('--bev-height', type=int, default=50)
     parser.add_argument('--img-height', type=int, default=256)
     parser.add_argument('--img-width', type=int, default=416)
@@ -157,6 +162,11 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    if args.workers_per_gpu > 0 and os.name == 'posix':
+        # This legacy dataset stores dict_keys views that cannot be pickled by
+        # spawn. Fork preserves deterministic ordering and permits worker reuse.
+        torch_multiprocessing.set_start_method('fork', force=True)
 
     assert args.out or args.eval or args.format_only or args.show \
         or args.show_dir, \
@@ -246,7 +256,7 @@ def main():
     data_loader = build_dataloader(
         dataset,
         samples_per_gpu=samples_per_gpu,
-        workers_per_gpu=0, 
+        workers_per_gpu=args.workers_per_gpu,
         dist=distributed,
         shuffle=False,
         nonshuffler_sampler=cfg.data.nonshuffler_sampler,
@@ -389,6 +399,7 @@ def main():
     shape0 = 901
     shape0_dict = {}
     calibration_batches = {}
+    calibration_frames = []
     num_calib_data = 0
     previous_scene_token = None
     for sample_id, data in tqdm(enumerate(data_loader)):
@@ -529,6 +540,14 @@ def main():
                 for key in onnx_input_shapes.keys():
                     calibration_batches.setdefault(key, []).append(
                         onnx_inputs[key].detach().cpu().numpy())
+                calibration_frames.append({
+                    'dataset_index': int(sample_id),
+                    'scene_token': scene_token,
+                    'timestamp': float(onnx_inputs['timestamp'].reshape(-1)[0].item()),
+                    'command': int(onnx_inputs['command'].reshape(-1)[0].item()),
+                    'use_prev_bev': int(onnx_inputs['use_prev_bev'].reshape(-1)[0].item()),
+                    'track_count': int(onnx_inputs['prev_track_intances0'].shape[0]),
+                })
                 num_calib_data += 1
                 print('num_calib_data: ', num_calib_data)
                 if args.max_calibration_samples > 0 and num_calib_data >= args.max_calibration_samples:
@@ -544,7 +563,24 @@ def main():
         output_dir = os.path.dirname(os.path.abspath(args.calibration_output))
         os.makedirs(output_dir, exist_ok=True)
         np.savez(args.calibration_output, **npz_data)
+        report_path = args.calibration_output + '.report.json'
+        with open(report_path, 'w') as report_file:
+            json.dump({
+                'schema_version': 1,
+                'dataset_split': args.dataset_split,
+                'dataset_frames': len(dataset),
+                'selection_track_count': shape0,
+                'selected_frames': calibration_frames,
+                'selected_frame_count': num_calib_data,
+                'workers_per_gpu': args.workers_per_gpu,
+                'temporal_protocol': (
+                    'Sequential forward_uniad_trt with per-scene reset and prior '
+                    'track, BEV, timestamp, l2g rotation, and l2g translation outputs'
+                ),
+            }, report_file, indent=2, sort_keys=True)
+            report_file.write('\n')
         print(f'Saved {num_calib_data} calibration samples to {args.calibration_output}')
+        print(f'Saved calibration provenance to {report_path}')
 
 if __name__ == '__main__':
     main()

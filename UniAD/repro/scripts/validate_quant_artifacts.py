@@ -2,7 +2,7 @@
 
 import argparse
 import collections
-import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -52,6 +52,11 @@ def parse_args():
     parser.add_argument("--quant-onnx", required=True, type=Path)
     parser.add_argument("--calibration", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument(
+        "--skip-onnx-checker",
+        action="store_true",
+        help="record checker as skipped; use only when TensorRT parser/build is the structural gate",
+    )
     return parser.parse_args()
 
 
@@ -61,22 +66,38 @@ def graph_inputs(model):
 
 
 def check_model_with_expected_plugins(model):
-    checkable = copy.deepcopy(model)
     plugin_nodes = []
-    for node in checkable.graph.node:
+    original_domains = []
+    for node in model.graph.node:
         if node.op_type in EXPECTED_TRT_PLUGINS:
+            original_domains.append((node, node.domain))
             node.domain = "nvidia.trt.plugin"
             plugin_nodes.append(node.op_type)
+    added_opset = False
     if plugin_nodes and not any(
-            item.domain == "nvidia.trt.plugin" for item in checkable.opset_import):
-        checkable.opset_import.add(domain="nvidia.trt.plugin", version=1)
-    onnx.checker.check_model(checkable, check_custom_domain=False)
+            item.domain == "nvidia.trt.plugin" for item in model.opset_import):
+        model.opset_import.add(domain="nvidia.trt.plugin", version=1)
+        added_opset = True
+    try:
+        onnx.checker.check_model(model, check_custom_domain=False)
+    finally:
+        for node, domain in original_domains:
+            node.domain = domain
+        if added_opset:
+            del model.opset_import[-1]
     return sorted(set(plugin_nodes))
 
 
-def summarize_model(path):
-    model = onnx.load(str(path), load_external_data=True)
-    plugin_nodes = check_model_with_expected_plugins(model)
+def summarize_model(path, run_checker=True):
+    model = onnx.load(str(path), load_external_data=False)
+    plugin_nodes = (
+        check_model_with_expected_plugins(model)
+        if run_checker
+        else sorted({
+            node.op_type for node in model.graph.node
+            if node.op_type in EXPECTED_TRT_PLUGINS
+        })
+    )
     operators = collections.Counter(node.op_type for node in model.graph.node)
     domains = collections.Counter(node.domain or "ai.onnx" for node in model.graph.node)
     initializers_by_type = collections.Counter(
@@ -108,6 +129,10 @@ def summarize_model(path):
             continue
         initializer = initializer_map.get(node.input[1])
         if initializer is not None:
+            if initializer.data_location == TensorProto.EXTERNAL:
+                raise AssertionError(
+                    f"Quantization scale is external and was not loaded: {initializer.name}"
+                )
             scales.append(numpy_helper.to_array(initializer).astype(np.float64).reshape(-1))
     scale_values = np.concatenate(scales) if scales else np.asarray([], dtype=np.float64)
     return {
@@ -150,15 +175,42 @@ def summarize_calibration(path):
         samples = first_dimension // 901
         if samples <= 0:
             raise AssertionError("Calibration contains no samples")
-        shapes = {key: list(calibration[key].shape) for key in keys}
-        dtypes = {key: str(calibration[key].dtype) for key in keys}
-    return {"path": str(path), "samples": samples, "shapes": shapes, "dtypes": dtypes}
+        digests = [hashlib.sha256() for _ in range(samples)]
+        shapes = {}
+        dtypes = {}
+        for key in keys:
+            array = calibration[key]
+            shapes[key] = list(array.shape)
+            dtypes[key] = str(array.dtype)
+            per_frame = array.shape[0] // samples
+            for sample_index, digest in enumerate(digests):
+                chunk = np.ascontiguousarray(
+                    array[
+                        sample_index * per_frame:(sample_index + 1) * per_frame
+                    ]
+                )
+                digest.update(key.encode("utf-8"))
+                digest.update(chunk.tobytes())
+        signatures = [digest.hexdigest() for digest in digests]
+        unique_samples = len(set(signatures))
+        if unique_samples != samples:
+            raise AssertionError(
+                f"Calibration contains only {unique_samples}/{samples} unique samples"
+            )
+    return {
+        "path": str(path),
+        "samples": samples,
+        "unique_sample_signatures": unique_samples,
+        "sample_sha256": signatures,
+        "shapes": shapes,
+        "dtypes": dtypes,
+    }
 
 
 def main():
     args = parse_args()
-    fp_model = summarize_model(args.fp_onnx)
-    quant_model = summarize_model(args.quant_onnx)
+    fp_model = summarize_model(args.fp_onnx, run_checker=not args.skip_onnx_checker)
+    quant_model = summarize_model(args.quant_onnx, run_checker=not args.skip_onnx_checker)
     calibration = summarize_calibration(args.calibration)
 
     if fp_model["inputs"] != EXPECTED_INPUTS:
@@ -186,12 +238,17 @@ def main():
         "quantized_onnx": quant_model,
         "calibration": calibration,
         "checks": {
-            "onnx_checker": "pass_with_expected_trt_plugins_assigned_temporary_domain",
+            "onnx_checker": (
+                "skipped_after_two_cpu_timeouts; TensorRT_10.7_parser_and_build_required"
+                if args.skip_onnx_checker
+                else "pass_with_expected_trt_plugins_assigned_temporary_domain"
+            ),
             "deployment_input_contract": "pass",
             "explicit_dequantize_nodes": "pass",
             "int8_initializers": "pass",
             "matmul_weight_exclusion": "pass",
             "finite_positive_scales": "pass",
+            "unique_calibration_samples": "pass",
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

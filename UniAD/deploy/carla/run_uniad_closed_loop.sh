@@ -20,7 +20,7 @@ TRAFFIC_VEHICLES="${UNIAD_CARLA_TRAFFIC_VEHICLES:-0}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 CARLA_ROOT="${CARLA_ROOT:-/home/lixingfeng/UniAD_examine/Carla/carla-0.9.10.1}"
-CARLA_ENV="${CARLA_ENV:-/home/lixingfeng/UniAD_examine/Carla/.conda/carla0910}"
+CARLA_ENV="${CARLA_ENV:-/home/lixingfeng/UniAD_examine/Carla/.conda/carla0910_route}"
 TRT_ENV="${UNIAD_TRT_ENV:-/home/lixingfeng/UniAD_examine/.conda/univ2x_trt107_runtime}"
 TRT_ROOT="${UNIAD_TRT_ROOT:-/data/lxf/uniad_deployment_outputs/toolchains/TensorRT-10.7.0-cu118-exact}"
 TRT_PY_LIB="${UNIAD_TRT_PY_LIB:-$TRT_ENV/lib/python3.8/site-packages/tensorrt_libs}"

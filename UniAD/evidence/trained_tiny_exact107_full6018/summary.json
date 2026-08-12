@@ -16,7 +16,8 @@
       "planning_avg_l2_m": 0.7804199336968433,
       "planning_point_collision_percent": 0.08585355045973192,
       "planning_box_collision_percent": 0.667442118090174,
-      "planning_mse_m": 0.0037721304688602686,
+      "planning_output_mean_point_l2_m": 0.0037721304688602686,
+      "planning_output_coordinate_mse_m2": 2.295475684688019e-05,
       "enqueue_mean_p50_p99_ms": [17.371234, 17.258495, 19.669227],
       "forward_mean_p50_p99_ms": [21.140803, 20.984258, 23.883671],
       "end_to_end_mean_p50_p99_ms": [98.305749, 97.042075, 112.048823]
@@ -25,22 +26,32 @@
       "planning_avg_l2_m": 0.7580378879209122,
       "planning_point_collision_percent": 0.09139248919906945,
       "planning_box_collision_percent": 0.63143901628448,
-      "planning_mse_m": 0.11917705833911896,
+      "planning_output_mean_point_l2_m": 0.11917705833911896,
+      "planning_output_coordinate_mse_m2": 0.1709366887807846,
       "enqueue_mean_p50_p99_ms": [13.043264, 12.907328, 16.895544],
       "forward_mean_p50_p99_ms": [17.027235, 16.858556, 23.286952],
       "end_to_end_mean_p50_p99_ms": [93.600415, 92.367102, 107.089594]
     },
     "int8_eq_fp16": {
-      "planning_avg_l2_m": 0.8014840939230107,
-      "planning_point_collision_percent": 0.08585355045973192,
-      "planning_box_collision_percent": 0.8086850559432812,
-      "planning_mse_m": 0.2746257781982422,
-      "enqueue_mean_p50_p99_ms": [12.888856, 12.800384, 16.75011],
-      "forward_mean_p50_p99_ms": [16.949338, 16.787833, 23.271639],
-      "end_to_end_mean_p50_p99_ms": [93.304099, 91.885102, 108.209889]
+      "calibration": "315 validation-sequence frames with track count 901, fixed independent-feed provider, and bounded 2048-bin entropy/KL histograms",
+      "planning_avg_l2_m": 0.7639366196215392,
+      "planning_point_collision_percent": 0.08862301982940068,
+      "planning_box_collision_percent": 0.800376647834275,
+      "planning_output_mean_point_l2_m": 0.18367953598499298,
+      "planning_output_coordinate_mse_m2": 0.1772746741771698,
+      "enqueue_mean_p50_p99_ms": [12.040909, 12.110256, 13.878584],
+      "forward_mean_p50_p99_ms": [15.992078, 16.00007, 18.088421],
+      "end_to_end_mean_p50_p99_ms": [92.788026, 91.679927, 109.152366]
     }
   },
+  "planning_output_comparison_definition": "The NVIDIA table's planning MSE column is documented as mean Euclidean L2 distance in meters between corresponding TensorRT and PyTorch trajectory points. Coordinate MSE in square meters is reported separately and is not interchangeable with that legacy column.",
   "latency_trend": "FP32 > FP16 > INT8(EQ)+FP16 for enqueue and synchronized inference call",
   "full_task_metric_limitation": "The NVIDIA tutorial C++ graph/runner emits planning, temporal state, segmentation logits, and decoded boxes but does not reconstruct the complete Python detection/tracking/map/occupancy result bundle. Engine mAP, AMOTA, map IoU, and occupancy IoU are therefore unavailable rather than zero.",
-  "raw_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt107/evaluation"
+  "superseded_int8_reader_result": {
+    "calibration": "64 training frames in NPZ but one effective repeated final-frame feed due to ModelOpt 0.29 dictionary aliasing",
+    "planning_avg_l2_m": 0.8014840939230107,
+    "planning_box_collision_percent": 0.8086850559432812,
+    "planning_output_mean_point_l2_m": 0.2746257781982422
+  },
+  "raw_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/calibration_validation_fixed"
 }

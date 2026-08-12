@@ -29,5 +29,7 @@ exec python -m torch.distributed.launch \
   "${CHECKPOINT}" \
   --launcher pytorch \
   --eval bbox \
+  --dataset-split test \
+  --workers-per-gpu "${UNIAD_DATALOADER_WORKERS:-8}" \
   --calibration-output "${ARTIFACT_ROOT}/calibration/calib_data_shape0_901.npz" \
   --max-calibration-samples "${MAX_CALIBRATION_SAMPLES}"

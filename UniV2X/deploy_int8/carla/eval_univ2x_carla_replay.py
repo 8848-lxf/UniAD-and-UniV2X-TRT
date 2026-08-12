@@ -148,7 +148,9 @@ class ReplayAgentState:
         self.prev_angle = None
         self.frame_index = 0
 
-    def build_inputs(self, image, timestamp, l2g_r, l2g_t, can_bus, lidar2img):
+    def build_inputs(
+        self, image, timestamp, l2g_r, l2g_t, can_bus, lidar2img, command=2
+    ):
         relative_can_bus = can_bus.copy()
         if self.prev_position is None:
             relative_can_bus[:3] = 0.0
@@ -201,7 +203,7 @@ class ReplayAgentState:
             torch.from_numpy(relative_can_bus).to(self.device),
             torch.from_numpy(np.repeat(lidar2img[None, None], 6, axis=1)).to(self.device),
             torch.tensor([1088.0, 1920.0], dtype=torch.float32, device=self.device),
-            torch.tensor([2], dtype=torch.int64, device=self.device),
+            torch.tensor([command], dtype=torch.int64, device=self.device),
             torch.tensor([int(self.frame_index > 0)], dtype=torch.int32, device=self.device),
             self.max_obj_id,
         ]

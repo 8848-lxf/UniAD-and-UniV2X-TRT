@@ -5,6 +5,8 @@
   "gpu": "NVIDIA GeForce RTX 4090",
   "metrics": {
     "pytorch_fp32": {
+      "car_map_4dist": 0.295075,
+      "car_amota": 0.2363999031481378,
       "map_nds": [0.051553577003612606, 0.05135911904191456],
       "amota_amotp": [0.10953531092979495, 1.7760343122798767],
       "map_iou_drivable_lanes_divider_crossing_contour": [0.7566360831260681, 0.1773560494184494, null, 0.19688177108764648, 0.15462766587734222],
@@ -18,6 +20,8 @@
       "end_to_end_mean_p50_p99_ms": [2330.758829923873, 925.1714441925287, 8927.111897729337]
     },
     "tensorrt_fp32": {
+      "car_map_4dist": 0.29818456493562956,
+      "car_amota": 0.2362031570094933,
       "map_nds": [0.05176317349701408, 0.051957887562488494],
       "amota_amotp": [0.11242209221526896, 1.7763549357265107],
       "map_iou_drivable_lanes_divider_crossing_contour": [0.7590909004211426, 0.18112020194530487, null, 0.2030264437198639, 0.15848296880722046],
@@ -32,6 +36,8 @@
       "end_to_end_mean_p50_p99_ms": [826.2028414471687, 456.3310816884041, 3413.872784823181]
     },
     "tensorrt_fp16": {
+      "car_map_4dist": 0.2866867924816097,
+      "car_amota": 0.20052434306123396,
       "map_nds": [0.04972042775238304, 0.050909651482496245],
       "amota_amotp": [0.09251474814435638, 1.7899943148528907],
       "map_iou_drivable_lanes_divider_crossing_contour": [0.7315239310264587, 0.14992249011993408, null, 0.18188554048538208, 0.12437828630208969],
@@ -46,6 +52,8 @@
       "end_to_end_mean_p50_p99_ms": [779.2901320965918, 486.43134720623493, 2762.912338189786]
     },
     "tensorrt_int8_eq_fp16": {
+      "car_map_4dist": 0.27963274863537535,
+      "car_amota": 0.1800125266106657,
       "map_nds": [0.04902687982452021, 0.0498871604721706],
       "amota_amotp": [0.08799511074197273, 1.7965290894373442],
       "map_iou_drivable_lanes_divider_crossing_contour": [0.7289673686027527, 0.14543114602565765, null, 0.17537692189216614, 0.12111203372478485],
@@ -60,6 +68,7 @@
       "end_to_end_mean_p50_p99_ms": [862.9005572324945, 378.02559323608875, 4733.538096398121]
     }
   },
+  "official_tracking_protocol_note": "The official UniV2X table value AMOTA=0.239 aligns with car-class AMOTA. Aggregate AMOTA additionally averages bicycle and pedestrian and must not be compared directly with 0.239. Both car-only and aggregate values are retained above.",
   "calibration": "Separate infrastructure and ego entropy calibration from 152 of 1521 training frames (about 10 percent); validation data was not used.",
   "latency_trend": "Corrected TensorRT full forward FP32 316.454 ms > FP16 255.068 ms > INT8 227.410 ms. End-to-end mean is host/DataLoader limited and non-monotonic.",
   "raw_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810"

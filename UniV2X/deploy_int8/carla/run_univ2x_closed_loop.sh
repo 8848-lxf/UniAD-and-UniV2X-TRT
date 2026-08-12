@@ -20,7 +20,7 @@ TRAFFIC_VEHICLES="${UNIV2X_CARLA_TRAFFIC_VEHICLES:-10}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CARLA_ROOT="${CARLA_ROOT:-/home/lixingfeng/UniAD_examine/Carla/carla-0.9.10.1}"
-CARLA_ENV="${CARLA_ENV:-/home/lixingfeng/UniAD_examine/Carla/.conda/carla0910}"
+CARLA_ENV="${CARLA_ENV:-/home/lixingfeng/UniAD_examine/Carla/.conda/carla0910_route}"
 TRT_ENV="${TRT_ENV:-/home/lixingfeng/anaconda3/envs/univ2x_trt_runtime}"
 TRT_ROOT="${TRT_ROOT:-/home/lixingfeng/UniAD_examine/HEAL/prune_model/TensorRT-10.9_x86_cu118}"
 PLUGIN="${UNIV2X_PLUGIN:-/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/plugins_msda_fp32accum/build_univ2x_fp32accum/lib_uniad_plugins_trt10.9_x86_cu118.so}"

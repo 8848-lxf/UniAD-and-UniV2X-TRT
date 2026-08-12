@@ -34,6 +34,9 @@ def parse_args():
     parser.add_argument("--steer-gain", type=float, default=1.25)
     parser.add_argument("--speed-gain", type=float, default=0.35)
     parser.add_argument("--brake-gain", type=float, default=0.5)
+    parser.add_argument("--ego-camera-fov", type=float, default=100.6)
+    parser.add_argument("--infrastructure-camera-fov", type=float, default=47.9)
+    parser.add_argument("--blocked-frames", type=int, default=400)
     return parser.parse_args()
 
 
@@ -139,11 +142,66 @@ def spawn_traffic(world, traffic_manager, traffic_manager_port, count, seed):
     return actors
 
 
-def progress_percent(start, destination, current):
-    route = np.asarray([destination.x - start.x, destination.y - start.y])
-    travelled = np.asarray([current.x - start.x, current.y - start.y])
-    denominator = float(np.dot(route, route))
-    return float(np.clip(np.dot(travelled, route) / max(denominator, 1e-6), 0.0, 1.0) * 100.0)
+def dense_route_plan(world, points):
+    import carla
+    from agents.navigation.global_route_planner import GlobalRoutePlanner
+    from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+
+    planner = GlobalRoutePlanner(GlobalRoutePlannerDAO(world.get_map(), 1.0))
+    planner.setup()
+    route = []
+    for start, destination in zip(points[:-1], points[1:]):
+        start_location = world.get_map().get_waypoint(
+            carla.Location(x=start["x"], y=start["y"], z=start["z"]),
+            project_to_road=True,
+        ).transform.location
+        destination_location = world.get_map().get_waypoint(
+            carla.Location(
+                x=destination["x"], y=destination["y"], z=destination["z"]
+            ),
+            project_to_road=True,
+        ).transform.location
+        segment = planner.trace_route(start_location, destination_location)
+        if route and segment:
+            segment = segment[1:]
+        route.extend(segment)
+    if len(route) < 2:
+        raise RuntimeError("CARLA planner could not expand the requested route")
+    return route
+
+
+def route_cumulative_distances(route):
+    cumulative = [0.0]
+    for (previous, _), (following, _) in zip(route[:-1], route[1:]):
+        cumulative.append(
+            cumulative[-1]
+            + previous.transform.location.distance(following.transform.location)
+        )
+    return np.asarray(cumulative, dtype=np.float64)
+
+
+def route_position(route, cumulative, current, previous_index):
+    lower = max(0, previous_index - 5)
+    upper = min(len(route), previous_index + 201)
+    distances = np.asarray([
+        current.distance(route[index][0].transform.location)
+        for index in range(lower, upper)
+    ])
+    index = max(previous_index, lower + int(distances.argmin()))
+    progress = 100.0 * cumulative[index] / max(cumulative[-1], 1e-6)
+    return float(np.clip(progress, 0.0, 100.0)), index
+
+
+def navigation_command(route, route_index, lookahead=20):
+    # UniV2X follows the UniAD command convention: 0/1/2 is right/left/forward.
+    end = min(len(route), route_index + lookahead)
+    for _, option in route[route_index:end]:
+        name = str(option).rsplit(".", 1)[-1].upper()
+        if name == "RIGHT":
+            return 0
+        if name == "LEFT":
+            return 1
+    return 2
 
 
 def model_control(carla, planning, speed_mps, args):
@@ -187,7 +245,8 @@ def main():
     actors = []
     sensors = []
     rows = []
-    events = {"collision": 0, "lane_invasion": 0}
+    events = {"collision": 0, "collision_callbacks": 0, "lane_invasion": 0}
+    last_collision_frame = [-1000000]
     completion_reason = "max_frames"
 
     service_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -204,15 +263,18 @@ def main():
         traffic_manager.set_synchronous_mode(True)
         traffic_manager.set_random_device_seed(args.seed)
 
-        start = points[0]
-        destination = points[-1]
+        route = dense_route_plan(world, points)
+        route_cumulative = route_cumulative_distances(route)
+        route_start = route[0][0].transform
         requested_start_transform = carla.Transform(
-            carla.Location(x=start["x"], y=start["y"], z=start["z"] + 0.5),
-            carla.Rotation(pitch=start["pitch"], yaw=start["yaw"], roll=start["roll"]),
+            carla.Location(
+                x=route_start.location.x,
+                y=route_start.location.y,
+                z=route_start.location.z + 0.5,
+            ),
+            route_start.rotation,
         )
-        destination_location = carla.Location(
-            x=destination["x"], y=destination["y"], z=destination["z"]
-        )
+        destination_location = route[-1][0].transform.location
         blueprint = world.get_blueprint_library().find("vehicle.tesla.model3")
         blueprint.set_attribute("role_name", "hero")
         road_start = world.get_map().get_waypoint(
@@ -262,13 +324,13 @@ def main():
             args.traffic_vehicles, args.seed + 1,
         ))
 
-        camera_bp = world.get_blueprint_library().find("sensor.camera.rgb")
-        camera_bp.set_attribute("image_size_x", "1920")
-        camera_bp.set_attribute("image_size_y", "1080")
-        camera_bp.set_attribute("fov", "90")
-        camera_bp.set_attribute("sensor_tick", "0.0")
+        ego_camera_bp = world.get_blueprint_library().find("sensor.camera.rgb")
+        ego_camera_bp.set_attribute("image_size_x", "1920")
+        ego_camera_bp.set_attribute("image_size_y", "1080")
+        ego_camera_bp.set_attribute("fov", str(args.ego_camera_fov))
+        ego_camera_bp.set_attribute("sensor_tick", "0.0")
         ego_camera = world.spawn_actor(
-            camera_bp,
+            ego_camera_bp,
             carla.Transform(carla.Location(x=1.5, z=1.8)),
             attach_to=ego,
         )
@@ -290,7 +352,16 @@ def main():
                 roll=0.0,
             ),
         )
-        infrastructure_camera = world.spawn_actor(camera_bp, infrastructure_transform)
+        infrastructure_camera_bp = world.get_blueprint_library().find("sensor.camera.rgb")
+        infrastructure_camera_bp.set_attribute("image_size_x", "1920")
+        infrastructure_camera_bp.set_attribute("image_size_y", "1080")
+        infrastructure_camera_bp.set_attribute(
+            "fov", str(args.infrastructure_camera_fov)
+        )
+        infrastructure_camera_bp.set_attribute("sensor_tick", "0.0")
+        infrastructure_camera = world.spawn_actor(
+            infrastructure_camera_bp, infrastructure_transform
+        )
         sensors.append(infrastructure_camera)
 
         collision_sensor = world.spawn_actor(
@@ -298,9 +369,13 @@ def main():
             carla.Transform(),
             attach_to=ego,
         )
-        collision_sensor.listen(
-            lambda event: events.__setitem__("collision", events["collision"] + 1)
-        )
+        def record_collision(event):
+            events["collision_callbacks"] += 1
+            if event.frame - last_collision_frame[0] > 20:
+                events["collision"] += 1
+                last_collision_frame[0] = event.frame
+
+        collision_sensor.listen(record_collision)
         sensors.append(collision_sensor)
         lane_sensor = world.spawn_actor(
             world.get_blueprint_library().find("sensor.other.lane_invasion"),
@@ -327,6 +402,9 @@ def main():
             world.tick()
 
         request_path = os.path.join(args.request_dir, "current_frame.npz")
+        route_index = 0
+        best_progress = 0.0
+        last_progress_frame = 0
         for frame_index in range(args.max_frames):
             tick_start = time.perf_counter()
             ego.apply_control(control)
@@ -338,6 +416,13 @@ def main():
             distance_to_destination = location.distance(destination_location)
             inference = None
             target_speed = None
+            route_progress, route_index = route_position(
+                route, route_cumulative, location, route_index
+            )
+            command = navigation_command(route, route_index)
+            if route_progress > best_progress + 0.05:
+                best_progress = route_progress
+                last_progress_frame = frame_index
 
             if frame_index % args.inference_interval == 0:
                 ego_image = matching_measurement(ego_queue, carla_frame, "ego camera")
@@ -366,9 +451,17 @@ def main():
                         [angular_velocity.x, angular_velocity.y, angular_velocity.z],
                         dtype=np.float32,
                     ),
-                    camera_width=np.asarray([1920], dtype=np.int32),
-                    camera_height=np.asarray([1080], dtype=np.int32),
-                    camera_fov_degrees=np.asarray([90.0], dtype=np.float32),
+                    ego_camera_width=np.asarray([1920], dtype=np.int32),
+                    ego_camera_height=np.asarray([1080], dtype=np.int32),
+                    ego_camera_fov_degrees=np.asarray(
+                        [args.ego_camera_fov], dtype=np.float32
+                    ),
+                    infrastructure_camera_width=np.asarray([1920], dtype=np.int32),
+                    infrastructure_camera_height=np.asarray([1080], dtype=np.int32),
+                    infrastructure_camera_fov_degrees=np.asarray(
+                        [args.infrastructure_camera_fov], dtype=np.float32
+                    ),
+                    command=np.asarray([command], dtype=np.int32),
                 )
                 inference = service_request(channel, {
                     "op": "infer", "frame": frame_index, "npz": request_path
@@ -384,9 +477,9 @@ def main():
                 "speed_mps": speed_mps,
                 "target_speed_mps": target_speed,
                 "distance_to_destination_m": float(distance_to_destination),
-                "route_progress_percent": progress_percent(
-                    start_transform.location, destination_location, location
-                ),
+                "route_progress_percent": route_progress,
+                "route_index": route_index,
+                "navigation_command": command,
                 "control": {
                     "throttle": float(control.throttle),
                     "steer": float(control.steer),
@@ -409,8 +502,14 @@ def main():
                     "distance_to_destination_m": distance_to_destination,
                     "events": events,
                 })
-            if distance_to_destination <= 5.0:
+            if route_progress >= 99.0 and distance_to_destination <= 5.0:
                 completion_reason = "destination_reached"
+                break
+            if (
+                frame_index - last_progress_frame >= args.blocked_frames
+                and speed_mps < 0.2
+            ):
+                completion_reason = "blocked"
                 break
 
         inference_rows = [row["inference"] for row in rows if row["inference"]]
@@ -427,6 +526,8 @@ def main():
                 "town": town,
                 "completion_reason": completion_reason,
                 "progress_percent": max(row["route_progress_percent"] for row in rows),
+                "dense_waypoints": len(route),
+                "route_length_m": float(route_cumulative[-1]),
                 "final_distance_to_destination_m": rows[-1]["distance_to_destination_m"],
                 "requested_start": {
                     "x": requested_start_transform.location.x,
@@ -450,6 +551,7 @@ def main():
                 "seed": args.seed,
             },
             "events": events,
+            "blocked_frames_threshold": args.blocked_frames,
             "speed_mps": {
                 "mean": float(np.mean([row["speed_mps"] for row in rows])),
                 "p50": float(np.percentile([row["speed_mps"] for row in rows], 50)),

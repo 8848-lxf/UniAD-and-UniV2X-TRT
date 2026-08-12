@@ -113,10 +113,17 @@ class UniV2XPyTorchService:
     def infer(self, request):
         request_start = time.perf_counter()
         with np.load(request["npz"], allow_pickle=False) as arrays:
-            camera = {
-                "width": int(arrays["camera_width"][0]),
-                "height": int(arrays["camera_height"][0]),
-                "fov_degrees": float(arrays["camera_fov_degrees"][0]),
+            ego_camera = {
+                "width": int(arrays["ego_camera_width"][0]),
+                "height": int(arrays["ego_camera_height"][0]),
+                "fov_degrees": float(arrays["ego_camera_fov_degrees"][0]),
+            }
+            infrastructure_camera = {
+                "width": int(arrays["infrastructure_camera_width"][0]),
+                "height": int(arrays["infrastructure_camera_height"][0]),
+                "fov_degrees": float(
+                    arrays["infrastructure_camera_fov_degrees"][0]
+                ),
             }
             ego_image = model_image(arrays["ego_bgr"])
             infrastructure_image = model_image(arrays["infrastructure_bgr"])
@@ -131,12 +138,14 @@ class UniV2XPyTorchService:
                 infrastructure_world
             )
             ego_projection = lidar2image(
-                ego_world, arrays["world_from_ego_camera"], camera
+                ego_world, arrays["world_from_ego_camera"], ego_camera
             )
             infrastructure_projection = lidar2image(
                 infrastructure_world,
-                arrays["world_from_infrastructure_camera"], camera,
+                arrays["world_from_infrastructure_camera"],
+                infrastructure_camera,
             )
+            command = int(arrays["command"][0])
 
         with torch.cuda.stream(self.stream), torch.no_grad():
             infrastructure_inputs = self.infrastructure_state.build_inputs(
@@ -158,7 +167,7 @@ class UniV2XPyTorchService:
 
             ego_inputs = self.ego_state.build_inputs(
                 ego_image, timestamp, ego_l2g_r, ego_l2g_t, ego_can_bus,
-                ego_projection,
+                ego_projection, command,
             )
             infra_from_ego = np.linalg.inv(
                 right_handed(infrastructure_world)
@@ -208,6 +217,12 @@ class UniV2XPyTorchService:
             "frames": len(self.rows),
             "fixed_track_count": self.args.fixed_track_count,
             "fixed_coop_count": self.args.fixed_coop_count,
+            "camera_protocol": {
+                "ego_fov_degrees": 100.6,
+                "infrastructure_fov_degrees": 47.9,
+                "independent_intrinsics": True,
+                "navigation_command_from_dense_route": True,
+            },
             "rows": self.rows,
         })
         return response

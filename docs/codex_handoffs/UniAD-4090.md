@@ -23,8 +23,8 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | NVIDIA tiny/random ONNX reference flow | Completed as a deployment smoke | All three precisions ran; random weights make its planning accuracy non-physical and unsuitable for accuracy reproduction. |
 | Trained UniAD-tiny stage 1/2 | Completed | Stage 1 epoch 6 and stage 2 epoch 20 follow `documents/train_export.md`; both training and deployment `ckpts` entries resolve to one registry. |
 | Trained UniAD-tiny PyTorch full validation | Completed | 6019 frames; detection, tracking, map, occupancy, planning, and latency are recorded below. |
-| Trained UniAD-tiny ONNX/calibration/engines | Completed | Real epoch-20 checkpoint exported with the tutorial TRT config; 64 training samples and FP32/FP16/INT8(EQ)+FP16 engines are available locally. |
-| Trained UniAD-tiny temporal TensorRT evaluation | Completed | Corrected initial padding, OpenCV-compatible resize, scene reset, exact TensorRT 10.7 runtime, and fixed 1300/1600 contracts completed 6018 frames for FP32/FP16/INT8. |
+| Trained UniAD-tiny ONNX/calibration/engines | Completed with corrected validation315 calibration | The old 64-sample graph is superseded. The replacement uses 315 independent recurrent validation feeds, bounded entropy histograms, and a fresh exact-TensorRT-10.7 static-1600 engine. |
+| Trained UniAD-tiny temporal TensorRT evaluation | Completed for FP32/FP16/corrected INT8 | All three precisions completed 6018 frames with finite output, scene reset, fixed 1600 capacity, planning metrics, and mean/p50/p99 latency. |
 | UniAD-base config and checkpoint adaptation | Completed | Uses the base graph, base input metadata, and dynamic temporal-track profile; the checkpoint is not inserted into the tiny graph. |
 | Base FP32 ONNX export | Completed | Local artifact excluded from Git. |
 | Base explicit-QDQ INT8 graph | Completed | ONNX check passes with expected TRT plugin-domain handling; MatMul weights/activations are excluded from INT8. |
@@ -35,7 +35,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Base TensorRT FP32 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite metrics and no second-scale latency spikes. |
 | Base TensorRT FP16 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite planning and latency summaries. |
 | Base TensorRT INT8 fixed-1150 full evaluation | Completed, preliminary calibration | All 6018 frames completed; its evidence path explicitly records the current 8-sample training calibration. |
-| CARLA closed-loop evaluation | Completed as a custom-route diagnostic | PyTorch and all three TensorRT precisions run for 1200 Town03 frames with identical sensors/controller. This is not an official Bench2Drive score because the complete official assets/protocol are unavailable. |
+| CARLA closed-loop evaluation | Corrected four-backend diagnostic completed | PyTorch, FP32, FP16, and validation315 INT8 report dense-route progress, unique collision groups, blocked termination, and latency. This is not an official Bench2Drive score because the complete official assets/protocol are unavailable. |
 
 ## Verified results
 
@@ -131,7 +131,13 @@ The registry exposes `tiny_imgx0.25_e2e_ep20.pth` and the tutorial-compatible al
 
 This retained baseline predates the native p99 patch, so p99 is not inferred from p95. Future baseline timing reruns emit p99 directly.
 
-The exported real-weight graph has a 64-sample training calibration package at `trained_tiny_epoch20/calibration/calib_data_shape0_901.npz`. The INT8 graph passes explicit-QDQ validation with MatMul excluded and finite scales.
+The original exported real-weight graph used a 64-sample training calibration package at `trained_tiny_epoch20/calibration/calib_data_shape0_901.npz`. It is superseded: ModelOpt 0.29.0 constructs its fixed-shape feed list with `[{}] * n_itr`, so all list entries alias one dictionary and the calibration loop repeatedly receives the final frame.
+
+The corrected protocol sequentially processed all 6019 validation frames with the epoch-20 checkpoint and recursive track/BEV/timestamp/ego-pose state, resetting at 150 scene boundaries. It selected all 315 frames whose input track count is exactly 901 and wrote `calibration_validation_fixed/calibration/calib_data_shape0_901.npz`. Audits prove 315 unique NPZ frames and 315 independent provider feeds; the unmodified upstream provider exposes only one effective feed. The repository-local provider fixes the list allocation and fails closed unless every frame signature is unique, without modifying the installed ModelOpt environment.
+
+The explicit-QDQ graph is mixed precision rather than literal every-operator INT8. The validation315 graph contains 377 `QuantizeLinear`, 526 `DequantizeLinear`, and 675 INT8 initializers. INT8 weights cover all 104 Conv nodes and 45 of 53 Gemm/linear nodes; all 504 MatMul nodes are intentionally excluded. Activation QDQ boundaries also reach Add, Resize, MaxPool, Mul, transpose/reshape-related paths, and some MatMul inputs, but QDQ adjacency alone does not prove that TensorRT selected an INT8 kernel for every such layer.
+
+The first corrected entropy attempt exposed a second tool defect: 14 ORT histograms expanded above 2048 bins and the largest reached 507,826 bins. ORT's Python KL search is approximately quadratic in the expanded bin count and remained active after 3.6 hours. The accepted run symmetrically pads and exactly sums contiguous bins to at most 2048 while preserving every histogram count and full observed range, then calls the unchanged ORT entropy/KL threshold search. This local robustness patch is evidence-backed but is not byte-identical to unmodified upstream ModelOpt. The accepted quantization completed in 22.7 minutes, and TensorRT 10.7 parsed all 29,060 network layers and built the 157,675,380-byte engine in 459.3 seconds.
 
 | `trtexec`, 100 iterations at track shape 901 | FP32 | FP16 | INT8(EQ)+FP16 |
 | --- | ---: | ---: | ---: |
@@ -146,30 +152,33 @@ The accepted rerun uses the exact TensorRT 10.7 runtime expected by the NVIDIA p
 
 | Metric | Deployment PyTorch | TensorRT FP32 | TensorRT FP16 | TensorRT INT8(EQ)+FP16 |
 | --- | ---: | ---: | ---: | ---: |
-| planning avg. L2 | 0.780738 m | 0.780420 m | 0.758038 m | 0.801484 m |
-| planning point collision | 0.085854% | 0.085854% | 0.091392% | 0.085854% |
-| planning box collision | 0.667442% | 0.667442% | 0.631439% | 0.808685% |
-| planning MSE vs PyTorch | 0 | 0.003772 m | 0.119177 m | 0.274626 m |
-| enqueue mean / p50 / p99 | n/a | 17.371 / 17.258 / 19.669 ms | 13.043 / 12.907 / 16.896 ms | 12.889 / 12.800 / 16.750 ms |
-| synchronized forward mean / p50 / p99 | n/a | 21.141 / 20.984 / 23.884 ms | 17.027 / 16.859 / 23.287 ms | 16.949 / 16.788 / 23.272 ms |
-| end-to-end mean / p50 / p99 | n/a | 98.306 / 97.042 / 112.049 ms | 93.600 / 92.367 / 107.090 ms | 93.304 / 91.885 / 108.210 ms |
+| planning avg. L2 | 0.780738 m | 0.780420 m | 0.758038 m | 0.763937 m |
+| planning point collision | 0.085854% | 0.085854% | 0.091392% | 0.088623% |
+| planning box collision | 0.667442% | 0.667442% | 0.631439% | 0.800377% |
+| NVIDIA `planning MSE` (mean point L2) vs PyTorch | 0 | 0.003772 m | 0.119177 m | 0.183680 m |
+| literal coordinate MSE vs PyTorch | 0 | 2.2955e-05 m2 | 0.170937 m2 | 0.177275 m2 |
+| enqueue mean / p50 / p99 | n/a | 17.371 / 17.258 / 19.669 ms | 13.043 / 12.907 / 16.896 ms | 12.041 / 12.110 / 13.879 ms |
+| synchronized forward mean / p50 / p99 | n/a | 21.141 / 20.984 / 23.884 ms | 17.027 / 16.859 / 23.287 ms | 15.992 / 16.000 / 18.088 ms |
+| end-to-end mean / p50 / p99 | n/a | 98.306 / 97.042 / 112.049 ms | 93.600 / 92.367 / 107.090 ms | 92.788 / 91.680 / 109.152 ms |
 
-The accepted enqueue/forward ordering is `FP32 > FP16 > INT8`, matching the NVIDIA example qualitatively. Relative to FP32 enqueue, FP16 is `1.33x` faster and INT8 is `1.35x` faster; INT8 is only `1.01x` faster than FP16 on RTX 4090.
+The accepted enqueue/forward ordering is `FP32 > FP16 > INT8`, matching the NVIDIA example qualitatively. Relative to FP32 enqueue, FP16 is `1.33x` faster and INT8 is `1.44x` faster; INT8 is `1.08x` faster than FP16 on RTX 4090. Synchronized forward gives `1.32x` FP32-to-INT8 and `1.06x` FP16-to-INT8 speedups.
 
-This is same-checkpoint accuracy parity, not exact reproduction of NVIDIA's hidden/placeholder-checkpoint values. FP32 planning quality matches its PyTorch reference closely, but its trajectory MSE `0.003772 m` is above NVIDIA's `9.2417e-07`; FP16/INT8 MSE is also larger than the example. The official C++ graph does not reconstruct the complete Python detection/tracking/map/occupancy result bundle, so engine mAP, AMOTA, map IoU, and occupancy IoU are unavailable rather than reported as zero. The original epoch-20 PyTorch full-task scores remain in the preceding table.
+NVIDIA explicitly defines its `planning MSE` column as the mean Euclidean L2 distance between corresponding TensorRT and PyTorch trajectory points, despite the MSE label. It is not the coordinate-wise squared error and is not obtained by squaring the mean L2. For FP32, mean point L2 is `0.003772 m`, coordinate MSE is `2.2955e-05 m2`, mean squared point L2 is `4.5909e-05 m2`, and square-of-mean L2 is `1.4229e-05 m2`.
+
+The calibration fix improves INT8 planning-to-PyTorch L2 from the superseded `0.274626 m` to `0.183680 m` (`33.1%`), but does not reproduce NVIDIA's `0.0502 m`; FP32 `0.003772 m` also remains above NVIDIA's `9.2417e-07 m`. Collision remains a separate unresolved protocol mismatch: the deployment PyTorch reference box collision is already `0.667442%`, whereas the full Python 6019-frame baseline is `0.221521%` and NVIDIA reports `0.27%`. Calibration cannot repair a baseline GT/metadata/evaluator mismatch. The official C++ graph does not reconstruct the complete Python detection/tracking/map/occupancy result bundle, so engine mAP, AMOTA, map IoU, and occupancy IoU are unavailable rather than reported as zero.
 
 ### CARLA Town03 model-controlled closed-loop diagnostic
 
-The original epoch-20 PyTorch checkpoint and all three TensorRT precisions use the same six synchronized RGB cameras, route XML, preprocessing, recurrent state, controller, no traffic, 1200 frames, and inference every 10 frames. The latency table excludes the first cold inference.
+The corrected diagnostic uses one dense GlobalRoutePlanner route, six synchronized RGB cameras, route navigation commands, identical preprocessing/controller inputs, no traffic, inference every 10 frames, and a 400-frame blocked threshold. The latency table excludes the first cold inference.
 
-| Backend | Route progress | Collision callbacks / lane invasions | Forward mean / p50 / p99 | Service E2E mean / p50 / p99 |
-| --- | ---: | ---: | ---: | ---: |
-| PyTorch FP32 | 27.90% | 1101 / 18 | 94.232 / 91.734 / 143.972 ms | 261.587 / 260.725 / 306.752 ms |
-| TensorRT FP32 | 27.89% | 1096 / 18 | 20.374 / 19.641 / 29.731 ms | 214.238 / 204.636 / 266.631 ms |
-| TensorRT FP16 | 27.94% | 1093 / 18 | 17.869 / 16.838 / 29.899 ms | 197.037 / 192.933 / 245.430 ms |
-| TensorRT INT8(EQ)+FP16 | 27.99% | 1092 / 18 | 18.299 / 15.954 / 37.416 ms | 194.969 / 191.444 / 264.580 ms |
+| Backend | Frames / result | Route progress | Unique collisions / lane invasions | Forward mean / p50 / p99 | Service E2E mean / p50 / p99 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| PyTorch FP32 | 541 / blocked | 2.1066% | 19 / 6 | 94.259 / 93.884 / 104.847 ms | 258.589 / 261.217 / 276.894 ms |
+| TensorRT FP32 | 546 / blocked | 2.1974% | 20 / 6 | 24.110 / 22.855 / 35.912 ms | 201.002 / 203.447 / 288.735 ms |
+| TensorRT FP16 | 541 / blocked | 2.1066% | 20 / 6 | 17.101 / 15.550 / 31.390 ms | 188.202 / 188.509 / 213.407 ms |
+| TensorRT INT8(EQ)+FP16 | 571 / blocked | 2.3791% | 19 / 6 | 19.504 / 16.299 / 48.116 ms | 199.395 / 193.309 / 254.606 ms |
 
-All variants follow the same initial trajectory and then stall in repeated contact around 28% route progress. Callback counts are repeated contact events, not unique collisions. The integration is live and model-controlled, but the reused CARLA tree does not contain the complete official Bench2Drive assets/protocol; these values must not be reported as an official closed-loop driving score. FP16 has the lowest forward mean, while INT8 has the lowest p50 and service end-to-end mean; unlike the open-loop enqueue result, CARLA INT8 mean is slightly above FP16 because its p99 tail is larger.
+All variants follow similar initial motion and then stall in repeated contact around 2.1% to 2.4% of the dense route. This is an offline nuScenes-model/controller domain mismatch rather than a reduced-precision-only failure. The reused CARLA tree does not contain the complete official Bench2Drive scenarios/scoring protocol, so these values must not be reported as a driving score.
 
 ## Official-patch and base-port audit
 
@@ -194,10 +203,20 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 
 1. Trace the FP32 planning delta against PyTorch before attributing accuracy loss to reduced precision; prioritize export rewrites, plugin parity, temporal-state decoding, and result reconstruction.
 2. Expand the ONNX output contract and add TensorRT result-bundle reconstruction if full detection/tracking/map/occupancy scores are required from the engine path; the NVIDIA tutorial graph cannot emit all of them.
-3. Replace the in-memory monolithic calibration collector with a bounded-memory streaming or sharded protocol before expanding UniAD-base calibration; one 8-sample NPZ is already about 1.2 GiB.
-4. Rebuild and rerun INT8 after the larger representative calibration is available; retain the current `calib8` lineage for comparison.
+3. Trace the deployment-reference collision mismatch against the 6019-frame Python baseline before comparing box collision with NVIDIA's table.
+4. Replace the in-memory monolithic calibration collector with a bounded-memory streaming or sharded protocol before expanding UniAD-base calibration; one 8-sample NPZ is already about 1.2 GiB.
 5. Install the complete official Bench2Drive/CARLA scenario assets before requesting a formal closed-loop driving score; retain the current Town03 result only as a custom diagnostic.
 6. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 009 - 2026-08-12T15:42:57-07:00
+
+- Proved and fixed ModelOpt 0.29's fixed-shape feed aliasing: the 4.99 GiB validation package contains 315 unique recurrent shape-901 frames, while upstream exposed one repeated final-frame feed.
+- Added bounded, count-preserving entropy histograms after a probe found 507,826-bin ORT expansion; completed the corrected quantization in 22.7 minutes without changing the installed ModelOpt environment.
+- Built a fresh exact-TensorRT-10.7 static-1600 engine and completed 6018/6018 finite frames with INT8 planning L2 `0.763937 m`, box collision `0.800377%`, planning-to-PyTorch L2 `0.183680 m`, and forward `15.992/16.000/18.088 ms`.
+- Completed the corrected INT8 Town03 diagnostic: 571 frames, blocked at `2.3791%`, 19 unique collisions, 6 lane invasions, and steady-state engine forward `19.504/16.299/48.116 ms`.
+- Recorded that calibration improved but did not close NVIDIA accuracy parity; the deployment collision baseline and full Python baseline remain inconsistent and require separate GT/evaluator tracing.
 
 ---
 

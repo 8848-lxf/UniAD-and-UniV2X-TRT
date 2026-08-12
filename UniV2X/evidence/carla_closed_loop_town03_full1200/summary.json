@@ -1,46 +1,73 @@
 {
-  "schema_version": 1,
-  "scope": "Custom model-controlled Town03 route, 1200 frames, 60 simulated seconds, inference every 10 frames, no traffic. This is not an official V2Xverse leaderboard score.",
+  "schema_version": 2,
+  "scope": "Custom model-controlled Town03 diagnostic with a dense GlobalRoutePlanner route, blocked-vehicle termination, inference every 10 frames, and no traffic. This is not an official V2Xverse leaderboard score.",
   "route": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml",
+  "route_length_m": 1181.6670165191117,
   "runs": {
     "pytorch_fp32": {
-      "progress_percent": 15.594395877543644,
-      "final_distance_m": 61.95558547973633,
-      "collision_callbacks": 1315,
-      "lane_invasions": 8,
-      "mean_speed_mps": 0.4308803351561503,
-      "combined_forward_mean_p50_p99_ms": [584.8223218897812, 583.5935920476913, 617.930347546935],
-      "service_end_to_end_mean_p50_p99_ms": [735.9537838355583, 732.0844642817974, 800.518549233675]
+      "frames": 524,
+      "completion_reason": "blocked",
+      "progress_percent": 1.8423601270148504,
+      "unique_collisions": 19,
+      "collision_callbacks": 397,
+      "lane_invasions": 3,
+      "mean_speed_mps": 0.9775886762069331,
+      "combined_forward_mean_p50_p99_ms": [573.5133386646899, 570.2258292585611, 618.6494730226697],
+      "service_end_to_end_mean_p50_p99_ms": [722.6945061881381, 720.4168317839503, 769.7327385656537],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 28,
+      "matched_tracks_sum": 0
     },
     "tensorrt_fp32": {
-      "progress_percent": 15.752812184914653,
-      "final_distance_m": 62.3414421081543,
-      "collision_callbacks": 1092,
-      "lane_invasions": 9,
-      "mean_speed_mps": 0.4373852225021908,
-      "combined_forward_mean_p50_p99_ms": [303.8372235889194, 301.6515802592039, 325.87151162326336],
-      "service_end_to_end_mean_p50_p99_ms": [451.52315743142316, 456.26785792410374, 498.1241685524582]
+      "frames": 525,
+      "completion_reason": "blocked",
+      "progress_percent": 1.8423601270148504,
+      "unique_collisions": 20,
+      "collision_callbacks": 399,
+      "lane_invasions": 4,
+      "mean_speed_mps": 0.9661434742104407,
+      "combined_forward_mean_p50_p99_ms": [295.97834089341075, 294.9844067916274, 305.93992337584496],
+      "service_end_to_end_mean_p50_p99_ms": [443.1484073687058, 445.1169641688466, 457.4422861263156],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 31,
+      "matched_tracks_sum": 0
     },
     "tensorrt_fp16": {
-      "progress_percent": 15.189478221289617,
-      "final_distance_m": 63.00797653198242,
-      "collision_callbacks": 1076,
-      "lane_invasions": 9,
-      "mean_speed_mps": 0.4429099215368413,
-      "combined_forward_mean_p50_p99_ms": [238.82260566436443, 237.56981641054153, 253.72404277324674],
-      "service_end_to_end_mean_p50_p99_ms": [387.64326427789297, 387.99124024808407, 407.0788696780801]
+      "frames": 526,
+      "completion_reason": "blocked",
+      "progress_percent": 1.8423601270148504,
+      "unique_collisions": 20,
+      "collision_callbacks": 406,
+      "lane_invasions": 5,
+      "mean_speed_mps": 0.9637305807574705,
+      "combined_forward_mean_p50_p99_ms": [237.37201309547976, 234.96710509061813, 249.42468525841832],
+      "service_end_to_end_mean_p50_p99_ms": [387.90854707790106, 387.7819590270519, 412.8739167377353],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 19,
+      "matched_tracks_sum": 0
     },
     "tensorrt_int8_eq_fp16": {
-      "progress_percent": 15.155736421094343,
-      "final_distance_m": 63.05441665649414,
-      "collision_callbacks": 1082,
-      "lane_invasions": 9,
-      "mean_speed_mps": 0.44304346356118923,
-      "combined_forward_mean_p50_p99_ms": [213.16884832159312, 208.78884196281433, 254.69146270304904],
-      "service_end_to_end_mean_p50_p99_ms": [367.6368050402453, 363.2332719862461, 421.868892237544]
+      "frames": 530,
+      "completion_reason": "blocked",
+      "progress_percent": 1.9292776253905537,
+      "unique_collisions": 20,
+      "collision_callbacks": 406,
+      "lane_invasions": 4,
+      "mean_speed_mps": 0.9694648236118314,
+      "combined_forward_mean_p50_p99_ms": [200.31802395645244, 198.56306537985802, 214.06061882153153],
+      "service_end_to_end_mean_p50_p99_ms": [349.38298928766295, 349.9724129214883, 364.8490456491709],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 23,
+      "matched_tracks_sum": 0
     }
   },
-  "latency_definition": "Steady state excludes the first model inference and includes the sequential infrastructure and ego stages.",
-  "driving_result_interpretation": "All variants stall after an early collision. Route progress and event counts are diagnostic only because the offline V2X-Seq checkpoint is outside its training domain and the available assets do not implement the official V2Xverse evaluation protocol.",
-  "raw_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/carla_closed_loop"
+  "latency_definition": "Steady state excludes the first model inference and combined forward includes the sequential infrastructure and ego stages.",
+  "sensor_protocol": {
+    "ego_camera_fov_degrees": 100.6,
+    "infrastructure_camera_fov_degrees": 47.9,
+    "independent_intrinsics": true,
+    "route_navigation_command": true
+  },
+  "driving_result_interpretation": "Every backend produced active infrastructure tracks in 8 of 53 inference calls, but host cooperative matching accepted zero tracks. The offline V2X-SPD checkpoint, CARLA extrinsics/detection geometry, and host association contract are therefore not closed-loop equivalent. All backends stall after early contact; progress and events are diagnostic only because the reused CARLA tree lacks the complete official V2Xverse scenario/scoring assets.",
+  "raw_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/carla_closed_loop_corrected_20260812"
 }
