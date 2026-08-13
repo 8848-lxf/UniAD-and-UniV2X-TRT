@@ -18,6 +18,7 @@ if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
 from cooperative_runtime import prepare_cooperative_inputs
+from planning_postprocess import postprocess_planning
 from trt_engine import TensorRTEngine
 from eval_univ2x_carla_replay import (
     ReplayAgentState,
@@ -183,18 +184,29 @@ class UniV2XService:
             finite_or_raise("ego", ego_outputs)
             self.ego_state.update(ego_outputs)
 
-        planning = ego_outputs["outs_planning"].detach().float().cpu().numpy()[0]
+        postprocess_start = time.perf_counter()
+        raw_planning = ego_outputs["outs_planning"].detach().float().cpu().numpy()[0]
+        planning, postprocess_statistics = postprocess_planning(
+            raw_planning,
+            ego_outputs["seg_out"].detach().cpu().numpy(),
+            ego_outputs["drivable_pred"].detach().cpu().numpy(),
+        )
+        postprocess_end = time.perf_counter()
         scores = ego_outputs["det_scores"].detach().float().cpu().numpy()
         response = {
             "ok": True,
             "frame": int(request["frame"]),
             "planning_xy": planning[:, :2].tolist(),
+            "planning_postprocess": postprocess_statistics,
             "detections_above_0_1": int((scores >= 0.1).sum()),
             "cooperative": cooperative_stats,
             "latency_ms": {
                 "infrastructure_forward": (infrastructure_end - infrastructure_start) * 1000.0,
                 "ego_forward": (ego_end - ego_start) * 1000.0,
                 "combined_forward": (ego_end - infrastructure_start) * 1000.0,
+                "planning_postprocess": (
+                    postprocess_end - postprocess_start
+                ) * 1000.0,
                 "service_end_to_end": (time.perf_counter() - request_start) * 1000.0,
             },
         }
@@ -213,6 +225,9 @@ class UniV2XService:
                     "independent_intrinsics": True,
                     "navigation_command_from_dense_route": True,
                 },
+                "planning_protocol": (
+                    "occupancy-aware collision plus predicted-drivable correction"
+                ),
                 "rows": self.rows,
             },
         )

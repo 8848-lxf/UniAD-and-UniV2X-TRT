@@ -223,6 +223,9 @@ def model_control(carla, planning, speed_mps, args):
     target_speed = float(np.clip(distance / max(horizon_seconds, 0.5), 1.5, 8.0))
     heading = math.atan2(float(lateral_right), max(0.25, float(forward)))
     control = carla.VehicleControl()
+    # The reused CARLA 0.9.10.1 binary stays in neutral under direct control.
+    control.manual_gear_shift = True
+    control.gear = 1
     # UniAD lateral x and CARLA steering are both positive to the right.
     control.steer = float(np.clip(args.steer_gain * heading, -1.0, 1.0))
     speed_error = target_speed - speed_mps

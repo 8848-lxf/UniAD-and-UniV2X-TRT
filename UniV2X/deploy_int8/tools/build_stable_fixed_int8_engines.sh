@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT=/home/lixingfeng/UniAD_examine/UniV2X
 CONDA_ROOT=/home/lixingfeng/anaconda3
-TRT_ROOT=/home/lixingfeng/UniAD_examine/HEAL/prune_model/TensorRT-10.9_x86_cu118
+TRT_ROOT=/home/lixingfeng/uniad-trt/TensorRT-10.9_x86_cu118
 TRT_LIB=${TRT_ROOT}/targets/x86_64-linux-gnu/lib
 ARTIFACT_ROOT=${ROOT}/deploy_int8/artifacts/camera_repeat_fix
 FIX_ROOT=${ARTIFACT_ROOT}/numerical_stability_fix

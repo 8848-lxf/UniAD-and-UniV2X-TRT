@@ -19,7 +19,7 @@ TRAFFIC_VEHICLES="${UNIV2X_CARLA_TRAFFIC_VEHICLES:-0}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 CARLA_ROOT="${CARLA_ROOT:-/home/lixingfeng/UniAD_examine/Carla/carla-0.9.10.1}"
-CARLA_ENV="${CARLA_ENV:-/home/lixingfeng/UniAD_examine/Carla/.conda/carla0910}"
+CARLA_ENV="${CARLA_ENV:-/home/lixingfeng/UniAD_examine/Carla/.conda/carla0910_route}"
 PYTORCH_ENV="${UNIV2X_PYTORCH_ENV:-/home/lixingfeng/anaconda3/envs/torch112}"
 WORKING_ROOT="${UNIV2X_WORKING_ROOT:-/home/lixingfeng/UniAD_examine/UniV2X}"
 TEMPLATE_INPUT_DIR="${UNIV2X_TEMPLATE_INPUT_DIR:-$WORKING_ROOT/deploy_int8/artifacts/export_inputs/frame0}"

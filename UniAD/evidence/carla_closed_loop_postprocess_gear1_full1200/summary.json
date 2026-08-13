@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "scope": "Custom Town03 diagnostic with occupancy-aware collision post-processing, explicit forward gear, no traffic, inference every 10 frames, and a 400-frame blocked threshold; not an official leaderboard score",
+  "route": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml",
+  "route_length_m": 1181.6670165191117,
+  "control_fix": "The reused CARLA 0.9.10.1 binary remained in neutral under direct automatic VehicleControl; manual_gear_shift=true and gear=1 restored longitudinal motion.",
+  "planning_protocol": "Every PyTorch and TensorRT response applies the same occupancy-aware collision optimizer to raw outs_planning before control.",
+  "runs": {
+    "pytorch_fp32": {
+      "checkpoint": "/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/stage2/epoch_20.pth",
+      "frames": 587, "completion_reason": "blocked", "progress_percent": 1.5014262567104837,
+      "unique_collisions": 22, "lane_invasions": 0, "postprocess_changed_calls": 0,
+      "forward_mean_p50_p99_ms": [98.84395739384766, 94.14567984640598, 146.64620131254196],
+      "service_end_to_end_mean_p50_p99_ms": [270.9966135885695, 267.9538009688258, 345.9940756484866]
+    },
+    "tensorrt_fp32": {
+      "engine": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt107/engines/uniad_tiny_fp32_static1300.engine",
+      "frames": 582, "completion_reason": "blocked", "progress_percent": 1.5014262567104837,
+      "unique_collisions": 22, "lane_invasions": 0, "postprocess_changed_calls": 13,
+      "forward_mean_p50_p99_ms": [22.958338067963204, 22.747059352695942, 30.21049950271845],
+      "service_end_to_end_mean_p50_p99_ms": [205.32498736705244, 203.50245479494333, 261.1547710932791]
+    },
+    "tensorrt_fp16": {
+      "engine": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt107/engines/uniad_tiny_fp16_static1600.engine",
+      "frames": 585, "completion_reason": "blocked", "progress_percent": 1.5860864126828713,
+      "unique_collisions": 22, "lane_invasions": 0, "postprocess_changed_calls": 0,
+      "forward_mean_p50_p99_ms": [18.41938556653672, 16.16540551185608, 36.108886767178774],
+      "service_end_to_end_mean_p50_p99_ms": [193.7697830706321, 192.9492261260748, 223.86122908443213]
+    },
+    "tensorrt_int8_eq_fp16": {
+      "engine": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/calibration_validation_fixed/trt107_build/engines/uniad_tiny_int8_eq_fp16_static1600.engine",
+      "calibration": "315 unique validation frames with track input count 901 and independent calibration feeds",
+      "frames": 904, "completion_reason": "blocked", "progress_percent": 1.293565374286143,
+      "unique_collisions": 38, "lane_invasions": 0, "postprocess_changed_calls": 2,
+      "forward_mean_p50_p99_ms": [19.184950718449223, 18.378866836428642, 29.780464041978117],
+      "service_end_to_end_mean_p50_p99_ms": [192.50090058065123, 197.12096266448498, 241.73963885754344]
+    }
+  },
+  "latency_definition": "Steady state excludes the first inference. Forward is synchronized model/engine execution; service end-to-end includes request NPZ loading, image preprocessing, recurrent state, output transfer, post-processing, and response serialization.",
+  "interpretation": "Explicit gear fixed the prior neutral-vehicle defect, but all four backends still stall after early contact. The shared blocked failure remains a sensor/domain/controller integration problem rather than an INT8-only runtime failure.",
+  "raw_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/carla_closed_loop_postprocess_gear1_full1200_v2_20260812"
+}

@@ -21,6 +21,8 @@ TOOLS = os.path.abspath(os.path.join(
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
+from planning_postprocess import postprocess_planning
+
 TRACK_SPECS = (
     ("prev_track_intances0", (512,), torch.float32),
     ("prev_track_intances1", (3,), torch.float32),
@@ -269,16 +271,26 @@ class UniADService:
                 raise RuntimeError("non-finite UniAD outputs: %r" % bad)
             self.state.update(outputs)
 
-        planning = outputs["outs_planning"].detach().float().cpu().numpy()[0]
+        postprocess_start = time.perf_counter()
+        raw_planning = outputs["outs_planning"].detach().float().cpu().numpy()[0]
+        planning, postprocess_statistics = postprocess_planning(
+            raw_planning,
+            outputs["seg_out"].detach().cpu().numpy(),
+        )
+        postprocess_end = time.perf_counter()
         scores = outputs["scores"].detach().float().cpu().numpy()
         response = {
             "ok": True,
             "frame": int(request["frame"]),
             "planning_xy": planning.tolist(),
+            "planning_postprocess": postprocess_statistics,
             "detections_above_0_25": int((scores >= 0.25).sum()),
             "track_query_count": int(outputs["prev_track_intances3_out"].shape[0]),
             "latency_ms": {
                 "engine_forward": (forward_end - forward_start) * 1000.0,
+                "planning_postprocess": (
+                    postprocess_end - postprocess_start
+                ) * 1000.0,
                 "service_end_to_end": (time.perf_counter() - request_start) * 1000.0,
             },
         }
@@ -288,6 +300,7 @@ class UniADService:
             "precision": self.args.precision,
             "frames": len(self.rows),
             "fixed_track_count": self.args.fixed_track_count,
+            "planning_protocol": "occupancy-aware collision optimized",
             "rows": self.rows,
         })
         return response

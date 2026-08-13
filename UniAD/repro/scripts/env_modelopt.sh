@@ -8,7 +8,7 @@ set -u
 
 if [[ -z "${TRT_ROOT:-}" ]]; then
   for candidate in \
-    /home/lixingfeng/UniAD_examine/HEAL/prune_model/TensorRT-10.9_x86_cu118 \
+    /home/lixingfeng/uniad-trt/TensorRT-10.9_x86_cu118 \
     /home/lixingfeng/uniad-trt/py310/TensorRT-10.9_x86_cu118; do
     if [[ -f "${candidate}/targets/x86_64-linux-gnu/lib/libnvinfer.so.10" ]]; then
       TRT_ROOT="${candidate}"
@@ -21,7 +21,11 @@ if [[ ! -f "${TRT_ROOT:-}/targets/x86_64-linux-gnu/lib/libnvinfer.so.10" ]]; the
   return 2 2>/dev/null || exit 2
 fi
 export TRT_ROOT
-export MODELOPT_ROOT=${MODELOPT_ROOT:-/home/lixingfeng/UniAD_examine/UniV2X/Model-Optimizer-0.29.0}
+export MODELOPT_ROOT=${MODELOPT_ROOT:-/home/lixingfeng/UniAD_examine/HEAL/prune_model/Model-Optimizer-0.29.0}
+if [[ ! -f "${MODELOPT_ROOT}/modelopt/__init__.py" ]]; then
+  echo "ModelOpt 0.29 source root not found: ${MODELOPT_ROOT}" >&2
+  return 2 2>/dev/null || exit 2
+fi
 export CUDA_HOME="${CONDA_PREFIX}"
 export CC="${CONDA_PREFIX}/bin/gcc"
 export CXX="${CONDA_PREFIX}/bin/g++"

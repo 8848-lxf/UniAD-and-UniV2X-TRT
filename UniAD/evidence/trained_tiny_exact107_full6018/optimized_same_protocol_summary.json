@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "scope": "6018-frame planning comparison after applying occupancy-aware collision optimization to the full Python reference and every TensorRT output",
+  "checkpoint": "/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/stage2/epoch_20.pth",
+  "reference": {
+    "source_results": "/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/trained_tiny_epoch20/evaluation/pytorch_fp32/results.pkl",
+    "trajectory_csv": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/evaluation/full_python_optimized_reference6018/planning_predictions.csv",
+    "frames": 6018,
+    "ground_truth_alignment_max_abs_delta": 0.0
+  },
+  "official_nvidia": {
+    "pytorch_fp32": {"avg_l2_m": 0.9986, "avg_box_collision_percent": 0.27, "planning_mse_m": 0.0},
+    "tensorrt_fp32": {"avg_l2_m": 0.9986, "avg_box_collision_percent": 0.27, "planning_mse_m": 9.2417e-7},
+    "tensorrt_fp16": {"avg_l2_m": 1.0021, "avg_box_collision_percent": 0.26, "planning_mse_m": 0.0458},
+    "tensorrt_int8_eq_fp16": {"avg_l2_m": 1.0029, "avg_box_collision_percent": 0.27, "planning_mse_m": 0.0502}
+  },
+  "local_epoch20": {
+    "full_python_fp32": {"avg_l2_m": 0.8265650655427992, "avg_box_collision_percent": 0.2215575495735017, "planning_mse_m": 0.0},
+    "tensorrt_fp32": {"avg_l2_m": 0.8188647124609817, "avg_box_collision_percent": 0.3406447324692589, "planning_mse_m": 0.1884327232837677},
+    "tensorrt_fp16": {"avg_l2_m": 0.7966627962282594, "avg_box_collision_percent": 0.3018721612938961, "planning_mse_m": 0.19814476370811462},
+    "tensorrt_int8_eq_fp16": {"avg_l2_m": 0.7985253491736158, "avg_box_collision_percent": 0.3240279162512463, "planning_mse_m": 0.2573217451572418}
+  },
+  "planning_mse_definition": "Mean Euclidean L2 distance in meters between same-frame TensorRT and full Python optimized trajectory points, matching NVIDIA's stated table semantics despite the MSE label.",
+  "acceptance": "Average L2 and box collision are in the same range as the NVIDIA example, but planning MSE is not reproduced; the remaining temporal/export/post-process protocol delta is material."
+}
