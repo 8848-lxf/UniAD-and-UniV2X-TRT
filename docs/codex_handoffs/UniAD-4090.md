@@ -238,6 +238,17 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 
 ---
 
+## Iteration 011 - 2026-08-12T22:24:00-07:00
+
+- Re-checked `tools/prepare_calib_data.py` against the NVIDIA implementation. The retained semantics are unchanged: sequential validation traversal, per-scene temporal reset, recursive track/BEV/timestamp/ego-pose state, and cherry-pick only frames whose current `prev_track_intances0` count is exactly 901. The original implementation's per-loop `npz_data` overwrite/alias behavior is fixed; 6019 validation frames yielded 315 selected frames and 315 unique feed signatures.
+- Audited the ModelOpt 0.29 calibration provider. The upstream `[{}] * n_itr` dictionary aliasing defect would repeat the final frame; the local provider creates independent dictionaries and preflights IDs/signatures. This is a calibration-data correctness fix, not a change to installed environments.
+- Built an isolated CasADi-enabled TensorRT 10.7 runtime with Conda `modelopt_uniad_dl4agx` CUDA 11.8/nvcc/g++ and compared it with the accepted BFGS runtime on the same corrected INT8 engine for 200 frames. Planning CSV maximum absolute delta was `1e-7 m`; `avg L2=0.777632 m`, `box col=0.833333%`, and planning-to-PyTorch L2 `0.229213 m` were identical. The optimizer implementation is therefore not the remaining official parity defect, and the slower CasADi build is not promoted to the formal runtime.
+- The remaining full-sequence FP32/FP16/INT8 planning gap is consequently classified as checkpoint/export/plugin/hardware numerical and temporal-contract variance after the calibration and post-processing audits; no additional malignant bug was reproduced in this round. NVIDIA's documented planning MSE label is retained as mean trajectory-point Euclidean L2, with coordinate MSE reported separately.
+- CARLA inventory: 233 training route XMLs (`Town01 33`, `Town02 21`, `Town03 42`, `Town04 44`, `Town05 42`, `Town06 28`, `Town07 14`, `Town10HD 9`). Complete scenario JSONs contain 393,070 event configurations across Town01-Town06. These are event definitions, not 393,070 routes; the current custom driver executes one route at a time and does not implement the official ScenarioRunner/leaderboard scorer.
+- Current full-route evidence remains one Town03 route for the INT8 service only. A four-backend x 233-route sweep for UniAD-tiny and UniV2X would be 1,864 serial route runs and is technically possible only after adding a CARLA route scheduler and scorer adapter; it has not been completed or represented as a full benchmark.
+
+---
+
 ## Iteration 013 - 2026-08-12T21:08:00-07:00
 
 - Audited the planning metric contract. The local official tutorial says `planning MSE` is mean trajectory-point Euclidean L2; coordinate MSE, mean squared point-L2, and square-of-mean L2 are now emitted separately. A 150-scene audit found FP16 `0.04355 m` after excluding scene-first frames versus full-sequence `0.119177 m`; INT8 was `0.11067 m` versus `0.183680 m`. The public source does not expose the legacy table generator, so a hidden squared interpretation is not claimed.
