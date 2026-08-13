@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "official_document": "DL4AGX/AV-Solutions/uniad-trt/documents/explicit_quantization.md:91",
+  "official_text_semantics": "average Euclidean L2 distance between corresponding TensorRT and PyTorch trajectory points, despite the legacy planning MSE label",
+  "official_numbers": {"fp32": 9.2417e-7, "fp16": 0.0458, "int8_eq_fp16": 0.0502},
+  "local_raw_6018": {
+    "fp32": {"mean_point_l2_m": 0.0037721304688602686, "coordinate_mse_m2": 2.295475684688019e-05, "mean_squared_point_l2_m2": 4.590951369376038e-05, "square_of_mean_point_l2_m2": 1.422897214995933e-05},
+    "fp16": {"mean_point_l2_m": 0.11917705833911896, "coordinate_mse_m2": 0.1709366887807846, "mean_squared_point_l2_m2": 0.3418733775615692, "square_of_mean_point_l2_m2": 0.014203170914809089},
+    "int8_eq_fp16": {"mean_point_l2_m": 0.18367953598499298, "coordinate_mse_m2": 0.1772746741771698, "mean_squared_point_l2_m2": 0.3545493483543396, "square_of_mean_point_l2_m2": 0.033738170912432315}
+  },
+  "scene_first_frame_audit": {"scene_count": 150, "fp32_all_mean_point_l2_m": 0.003772127894499908, "fp32_non_scene_first_mean_point_l2_m": 0.003728473179746585, "fp16_all_mean_point_l2_m": 0.11917705699843863, "fp16_non_scene_first_mean_point_l2_m": 0.043549376600321994, "fp16_scene_first_mean_point_l2_m": 3.077731914172761, "int8_all_mean_point_l2_m": 0.18367953318873695, "int8_non_scene_first_mean_point_l2_m": 0.11066942220684155, "int8_scene_first_mean_point_l2_m": 3.0398350748004863},
+  "conclusion": "The published prose supports mean point L2, not a squared-point MSE. Local FP16 becomes 0.04355 m after excluding 150 scene-initial frames and is close to 0.0458 m; FP32 is 0.00377 m and remains above 9.2417e-7 m. The public repository does not expose the script that generated the legacy table, so a squared interpretation cannot be proven from source."
+}

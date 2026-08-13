@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "scope": "Route-conditioned custom Town03 diagnostic; not Bench2Drive leaderboard scoring",
+  "route": {"file": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml", "dense_waypoints": 1171, "route_length_m": 1181.6670165191117, "completion_reason": "destination_reached", "progress_percent": 99.58448544740088, "final_distance_to_destination_m": 4.943777084350586},
+  "simulation": {"frames": 6134, "duration_seconds": 306.7, "inference_interval_frames": 10, "traffic_vehicles_requested": 0, "fixed_delta_seconds": 0.05},
+  "events": {"collision": 0, "collision_callbacks": 0, "lane_invasion": 29, "first_collision": null},
+  "speed_mps": {"mean": 3.78130895348441, "p50": 2.6737736152856346, "p99": 6.774056037834221},
+  "latency_steady_state_ms": {"engine_forward_mean_p50_p99": [15.509786704163178, 14.414168894290924, 24.90225963294506], "service_end_to_end_mean_p50_p99": [190.21625740857732, 189.5624492317438, 212.62254148721695]},
+  "temporal_state_recoveries": [{"frame": 1860, "nonfinite_recurrent_outputs": {"prev_track_intances1_out": 2}, "action": "discard_recurrent_outputs_and_reset_state"}],
+  "raw_result": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/carla_route_conditioned_v4_temporal_recovery_fullroute6500_20260812/tensorrt_int8/closed_loop_metrics.json"
+}

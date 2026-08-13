@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "scope": "Route-conditioned custom Town03 diagnostic; not V2Xverse leaderboard scoring",
+  "route": {"file": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml", "dense_waypoints": 1171, "route_length_m": 1181.6670165191117, "completion_reason": "destination_reached", "progress_percent": 99.58448544740088, "final_distance_to_destination_m": 4.686615467071533},
+  "simulation": {"frames": 3526, "duration_seconds": 176.3, "inference_interval_frames": 10, "traffic_vehicles_requested": 0, "fixed_delta_seconds": 0.05},
+  "events": {"collision": 0, "collision_callbacks": 0, "lane_invasion": 28, "first_collision": null},
+  "speed_mps": {"mean": 6.580239619301056, "p50": 6.700507885810103, "p99": 7.284357976449349},
+  "latency_steady_state_ms": {"infrastructure_forward_mean_p50_p99": [110.79304871170528, 110.0352955982089, 118.68793349713087], "ego_forward_mean_p50_p99": [83.60790462889285, 82.93439447879791, 90.360491797328], "combined_forward_mean_p50_p99": [200.91565217907456, 199.49966948479414, 216.18460437282923], "service_end_to_end_mean_p50_p99": [354.4808514839546, 354.1196035221219, 378.50531177595263]},
+  "temporal_state_recoveries": [],
+  "raw_result": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/carla_route_conditioned_v3_fullroute6500_20260812/tensorrt_int8/closed_loop_metrics.json"
+}

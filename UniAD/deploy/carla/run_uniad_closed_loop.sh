@@ -17,6 +17,10 @@ PORT="${8:-40100}"
 MAX_FRAMES="${UNIAD_CARLA_MAX_FRAMES:-1200}"
 INFERENCE_INTERVAL="${UNIAD_CARLA_INFERENCE_INTERVAL:-10}"
 TRAFFIC_VEHICLES="${UNIAD_CARLA_TRAFFIC_VEHICLES:-0}"
+ROUTE_LOOKAHEAD_M="${UNIAD_CARLA_ROUTE_LOOKAHEAD_M:-8.0}"
+MODEL_HEADING_WEIGHT="${UNIAD_CARLA_MODEL_HEADING_WEIGHT:-0.0}"
+BLOCKED_FRAMES="${UNIAD_CARLA_BLOCKED_FRAMES:-400}"
+SPEED_EMA_ALPHA="${UNIAD_CARLA_SPEED_EMA_ALPHA:-0.35}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 CARLA_ROOT="${CARLA_ROOT:-/home/lixingfeng/UniAD_examine/Carla/carla-0.9.10.1}"
@@ -118,6 +122,10 @@ env PYTHONNOUSERSITE=1 PYTHONPATH="$CARLA_EGG:$CARLA_ROOT/PythonAPI/carla" \
     --max-frames "$MAX_FRAMES" \
     --inference-interval "$INFERENCE_INTERVAL" \
     --traffic-vehicles "$TRAFFIC_VEHICLES" \
+    --route-lookahead-m "$ROUTE_LOOKAHEAD_M" \
+    --model-heading-weight "$MODEL_HEADING_WEIGHT" \
+    --blocked-frames "$BLOCKED_FRAMES" \
+    --speed-ema-alpha "$SPEED_EMA_ALPHA" \
     >"${OUTPUT_DIR}/closed_loop_driver.log" 2>&1
 
 wait "$SERVICE_PID"

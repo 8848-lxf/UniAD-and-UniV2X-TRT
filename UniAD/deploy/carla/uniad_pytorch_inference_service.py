@@ -25,6 +25,7 @@ from mmcv.runner import load_checkpoint
 from third_party.uniad_mmdet3d.models.builder import build_model
 
 from uniad_inference_service import (
+    RECURRENT_OUTPUT_NAMES,
     UniADState,
     atomic_json,
     lidar2image,
@@ -89,6 +90,7 @@ class UniADPyTorchService:
         self.stream = torch.cuda.Stream()
         self.state = UniADState(self.device, args.fixed_track_count)
         self.rows = []
+        self.temporal_recoveries = []
 
     def reset(self, scene_token):
         self.state.reset()
@@ -151,9 +153,23 @@ class UniADPyTorchService:
                 raise RuntimeError("unexpected UniAD output count: %d" % len(result))
             outputs = dict(zip(OUTPUT_NAMES, result))
             bad = nonfinite(outputs)
-            if bad:
+            critical_bad = {
+                name: count for name, count in bad.items()
+                if name not in RECURRENT_OUTPUT_NAMES
+            }
+            if critical_bad:
                 raise RuntimeError("non-finite UniAD outputs: %r" % bad)
-            self.state.update(outputs)
+            temporal_recovery = None
+            if bad:
+                temporal_recovery = {
+                    "frame": int(request["frame"]),
+                    "nonfinite_recurrent_outputs": bad,
+                    "action": "discard_recurrent_outputs_and_reset_state",
+                }
+                self.temporal_recoveries.append(temporal_recovery)
+                self.state.reset()
+            else:
+                self.state.update(outputs)
 
         postprocess_start = time.perf_counter()
         raw_planning = outputs["outs_planning"].detach().float().cpu().numpy()[0]
@@ -170,6 +186,7 @@ class UniADPyTorchService:
             "planning_postprocess": postprocess_statistics,
             "detections_above_0_25": int((scores >= 0.25).sum()),
             "track_query_count": int(outputs["prev_track_intances3_out"].shape[0]),
+            "temporal_state_recovery": temporal_recovery,
             "latency_ms": {
                 "engine_forward": (forward_end - forward_start) * 1000.0,
                 "planning_postprocess": (
@@ -186,6 +203,7 @@ class UniADPyTorchService:
             "frames": len(self.rows),
             "fixed_track_count": self.args.fixed_track_count,
             "planning_protocol": "occupancy-aware collision optimized",
+            "temporal_state_recoveries": self.temporal_recoveries,
             "rows": self.rows,
         })
         return response

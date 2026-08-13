@@ -36,6 +36,13 @@ TRACK_SPECS = (
     ("prev_track_intances12", (4,), torch.int32),
     ("prev_track_intances13", (), torch.float32),
 )
+RECURRENT_OUTPUT_NAMES = {
+    *(name + "_out" for name, _, _ in TRACK_SPECS),
+    "prev_timestamp_out",
+    "prev_l2g_r_mat_out",
+    "prev_l2g_t_out",
+    "bev_embed",
+}
 HAND_FLIP = np.diag([1.0, -1.0, 1.0, 1.0])
 CAMERA_RH_TO_STANDARD = np.asarray([
     [0.0, -1.0, 0.0, 0.0],
@@ -229,6 +236,7 @@ class UniADService:
         self.stream = torch.cuda.Stream()
         self.state = UniADState(self.device, args.fixed_track_count)
         self.rows = []
+        self.temporal_recoveries = []
 
     def reset(self, scene_token):
         self.state.reset()
@@ -267,9 +275,26 @@ class UniADService:
             self.stream.synchronize()
             forward_end = time.perf_counter()
             bad = nonfinite(outputs)
-            if bad:
+            critical_bad = {
+                name: count for name, count in bad.items()
+                if name not in RECURRENT_OUTPUT_NAMES
+            }
+            if critical_bad:
                 raise RuntimeError("non-finite UniAD outputs: %r" % bad)
-            self.state.update(outputs)
+            temporal_recovery = None
+            if bad:
+                # A CARLA route is much longer than one nuScenes scene. If only
+                # recurrent state is invalid, keep the finite current outputs
+                # and start a clean temporal segment on the next model call.
+                temporal_recovery = {
+                    "frame": int(request["frame"]),
+                    "nonfinite_recurrent_outputs": bad,
+                    "action": "discard_recurrent_outputs_and_reset_state",
+                }
+                self.temporal_recoveries.append(temporal_recovery)
+                self.state.reset()
+            else:
+                self.state.update(outputs)
 
         postprocess_start = time.perf_counter()
         raw_planning = outputs["outs_planning"].detach().float().cpu().numpy()[0]
@@ -286,6 +311,7 @@ class UniADService:
             "planning_postprocess": postprocess_statistics,
             "detections_above_0_25": int((scores >= 0.25).sum()),
             "track_query_count": int(outputs["prev_track_intances3_out"].shape[0]),
+            "temporal_state_recovery": temporal_recovery,
             "latency_ms": {
                 "engine_forward": (forward_end - forward_start) * 1000.0,
                 "planning_postprocess": (
@@ -301,6 +327,7 @@ class UniADService:
             "frames": len(self.rows),
             "fixed_track_count": self.args.fixed_track_count,
             "planning_protocol": "occupancy-aware collision optimized",
+            "temporal_state_recoveries": self.temporal_recoveries,
             "rows": self.rows,
         })
         return response

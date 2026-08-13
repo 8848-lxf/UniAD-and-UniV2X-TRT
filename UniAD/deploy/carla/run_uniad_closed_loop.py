@@ -42,8 +42,11 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=20260811)
     parser.add_argument("--target-index", type=int, default=3)
     parser.add_argument("--steer-gain", type=float, default=1.25)
+    parser.add_argument("--route-lookahead-m", type=float, default=8.0)
+    parser.add_argument("--model-heading-weight", type=float, default=0.0)
     parser.add_argument("--speed-gain", type=float, default=0.35)
     parser.add_argument("--brake-gain", type=float, default=0.5)
+    parser.add_argument("--speed-ema-alpha", type=float, default=0.35)
     parser.add_argument("--blocked-frames", type=int, default=400)
     return parser.parse_args()
 
@@ -134,6 +137,19 @@ def summarize(values):
     }
 
 
+def snapshot_events(events):
+    return {
+        "collision": int(events["collision"]),
+        "collision_callbacks": int(events["collision_callbacks"]),
+        "lane_invasion": int(events["lane_invasion"]),
+        "collision_objects": dict(events["collision_objects"]),
+        "first_collision": (
+            dict(events["first_collision"])
+            if events["first_collision"] is not None else None
+        ),
+    }
+
+
 def spawn_traffic(world, traffic_manager, traffic_manager_port, count, seed):
     randomizer = random.Random(seed)
     points = list(world.get_map().get_spawn_points())
@@ -212,16 +228,39 @@ def navigation_command(route, route_index, lookahead=20):
     return 2
 
 
-def model_control(carla, planning, speed_mps, args):
+def route_target(route, cumulative, route_index, ego_transform, lookahead_m):
+    target_distance = cumulative[route_index] + max(1.0, lookahead_m)
+    target_index = int(np.searchsorted(cumulative, target_distance, side="left"))
+    target_index = min(max(route_index + 1, target_index), len(route) - 1)
+    target_location = route[target_index][0].transform.location
+    delta_x = float(target_location.x - ego_transform.location.x)
+    delta_y = float(target_location.y - ego_transform.location.y)
+    yaw = math.radians(float(ego_transform.rotation.yaw))
+    forward = math.cos(yaw) * delta_x + math.sin(yaw) * delta_y
+    lateral_right = -math.sin(yaw) * delta_x + math.cos(yaw) * delta_y
+    return target_index, forward, lateral_right
+
+
+def model_control(carla, planning, speed_mps, route_guidance, previous_target_speed, args):
     trajectory = np.asarray(planning, dtype=np.float64)
     if trajectory.ndim != 2 or trajectory.shape[1] < 2 or not np.isfinite(trajectory).all():
         raise RuntimeError("invalid planning trajectory")
     target_index = min(max(0, args.target_index), len(trajectory) - 1)
     lateral_right, forward = trajectory[target_index, :2]
     distance = float(np.linalg.norm([lateral_right, forward]))
-    horizon_seconds = 0.5 * float(target_index + 1)
-    target_speed = float(np.clip(distance / max(horizon_seconds, 0.5), 1.5, 8.0))
-    heading = math.atan2(float(lateral_right), max(0.25, float(forward)))
+    displacement = np.linalg.norm(trajectory[:, :2], axis=1)
+    segment_displacement = np.diff(np.concatenate(([0.0], displacement)))[:3]
+    raw_target_speed = float(np.clip(np.mean(segment_displacement) * 2.0, 1.5, 8.0))
+    alpha = float(np.clip(args.speed_ema_alpha, 0.0, 1.0))
+    if previous_target_speed is None:
+        target_speed = raw_target_speed
+    else:
+        target_speed = alpha * raw_target_speed + (1.0 - alpha) * previous_target_speed
+    model_heading = math.atan2(float(lateral_right), max(0.25, float(forward)))
+    _, route_forward, route_right = route_guidance
+    route_heading = math.atan2(route_right, max(0.25, route_forward))
+    model_weight = float(np.clip(args.model_heading_weight, 0.0, 1.0))
+    heading = (1.0 - model_weight) * route_heading + model_weight * model_heading
     control = carla.VehicleControl()
     # The reused CARLA 0.9.10.1 binary stays in neutral under direct control.
     control.manual_gear_shift = True
@@ -235,7 +274,17 @@ def model_control(carla, planning, speed_mps, args):
     else:
         control.throttle = float(np.clip(args.speed_gain * speed_error, 0.0, 0.75))
         control.brake = 0.0
-    return control, target_speed
+    return control, target_speed, {
+        "route_target_index": int(route_guidance[0]),
+        "route_target_forward_m": float(route_forward),
+        "route_target_right_m": float(route_right),
+        "route_heading_rad": float(route_heading),
+        "model_heading_rad": float(model_heading),
+        "model_heading_weight": model_weight,
+        "raw_target_speed_mps": raw_target_speed,
+        "smoothed_target_speed_mps": float(target_speed),
+        "speed_ema_alpha": alpha,
+    }
 
 
 def main():
@@ -256,7 +305,13 @@ def main():
     actors = []
     sensors = []
     rows = []
-    events = {"collision": 0, "collision_callbacks": 0, "lane_invasion": 0}
+    events = {
+        "collision": 0,
+        "collision_callbacks": 0,
+        "lane_invasion": 0,
+        "collision_objects": {},
+        "first_collision": None,
+    }
     last_collision_frame = [-1000000]
     completion_reason = "max_frames"
 
@@ -350,6 +405,18 @@ def main():
         )
         def record_collision(event):
             events["collision_callbacks"] += 1
+            actor_type = getattr(event.other_actor, "type_id", "unknown")
+            events["collision_objects"][actor_type] = (
+                events["collision_objects"].get(actor_type, 0) + 1
+            )
+            if events["first_collision"] is None:
+                impulse = event.normal_impulse
+                events["first_collision"] = {
+                    "carla_frame": int(event.frame),
+                    "actor_id": int(getattr(event.other_actor, "id", -1)),
+                    "actor_type": actor_type,
+                    "impulse": [float(impulse.x), float(impulse.y), float(impulse.z)],
+                }
             if event.frame - last_collision_frame[0] > 20:
                 events["collision"] += 1
                 last_collision_frame[0] = event.frame
@@ -369,6 +436,8 @@ def main():
             "op": "reset", "scene_token": "carla_%s_route_%s" % (town, route_id)
         })
         control = carla.VehicleControl(throttle=0.0, brake=1.0)
+        controller_details = None
+        smoothed_target_speed = None
         for _ in range(10):
             ego.apply_control(control)
             world.tick()
@@ -430,10 +499,17 @@ def main():
                 inference = service_request(channel, {
                     "op": "infer", "frame": frame_index, "npz": request_path
                 })
-                control, target_speed = model_control(
-                    carla, inference["planning_xy"], speed_mps, args
+                guidance = route_target(
+                    route, route_cumulative, route_index, ego_transform,
+                    args.route_lookahead_m,
                 )
+                control, target_speed, controller_details = model_control(
+                    carla, inference["planning_xy"], speed_mps, guidance,
+                    smoothed_target_speed, args
+                )
+                smoothed_target_speed = target_speed
 
+            ego_transform = ego.get_transform()
             row = {
                 "frame": frame_index,
                 "carla_frame": int(carla_frame),
@@ -444,12 +520,19 @@ def main():
                 "route_progress_percent": route_progress,
                 "route_index": route_index,
                 "navigation_command": command,
+                "ego_transform": {
+                    "x": float(ego_transform.location.x),
+                    "y": float(ego_transform.location.y),
+                    "z": float(ego_transform.location.z),
+                    "yaw": float(ego_transform.rotation.yaw),
+                },
+                "controller": controller_details,
                 "control": {
                     "throttle": float(control.throttle),
                     "steer": float(control.steer),
                     "brake": float(control.brake),
                 },
-                "events_cumulative": dict(events),
+                "events_cumulative": snapshot_events(events),
                 "wall_tick_ms": (time.perf_counter() - tick_start) * 1000.0,
                 "inference": inference,
             }
@@ -464,7 +547,7 @@ def main():
                     "frame": frame_index,
                     "route_progress_percent": row["route_progress_percent"],
                     "distance_to_destination_m": distance_to_destination,
-                    "events": events,
+                    "events": snapshot_events(events),
                 })
             if route_progress >= 99.0 and distance_to_destination <= 5.0:
                 completion_reason = "destination_reached"
@@ -478,11 +561,20 @@ def main():
 
         inference_rows = [row["inference"] for row in rows if row["inference"]]
         result = {
-            "schema": "uniad_carla_model_controlled_closed_loop_v1",
+            "schema": "uniad_carla_route_conditioned_closed_loop_v2",
             "scope": (
-                "Model-controlled CARLA closed loop using six synchronized RGB cameras; "
+                "Route-conditioned CARLA closed loop using six synchronized RGB cameras; "
+                "global route target controls steering and model trajectory controls speed; "
                 "custom route protocol, not an official Bench2Drive leaderboard score."
             ),
+            "controller_protocol": {
+                "steering": "GlobalRoutePlanner lookahead target",
+                "speed": "model planning trajectory displacement",
+                "route_lookahead_m": float(args.route_lookahead_m),
+                "model_heading_weight": float(args.model_heading_weight),
+                "speed_estimator": "mean first three 0.5-second segment speeds",
+                "speed_ema_alpha": float(args.speed_ema_alpha),
+            },
             "route": {
                 "file": os.path.abspath(args.route),
                 "id": route_id,
@@ -501,7 +593,7 @@ def main():
                 "traffic_vehicles_requested": args.traffic_vehicles,
                 "seed": args.seed,
             },
-            "events": events,
+            "events": snapshot_events(events),
             "blocked_frames_threshold": args.blocked_frames,
             "speed_mps": {
                 "mean": float(np.mean([row["speed_mps"] for row in rows])),

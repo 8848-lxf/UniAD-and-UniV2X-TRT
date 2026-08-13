@@ -36,7 +36,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Base TensorRT FP32 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite metrics and no second-scale latency spikes. |
 | Base TensorRT FP16 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite planning and latency summaries. |
 | Base TensorRT INT8 fixed-1150 full evaluation | Completed, preliminary calibration | All 6018 frames completed; its evidence path explicitly records the current 8-sample training calibration. |
-| CARLA closed-loop evaluation | Four-backend post-process/gear-corrected custom diagnostic completed | PyTorch, FP32, FP16, and validation315 INT8 apply occupancy-aware planning correction and explicit forward gear. They report dense-route progress, collision groups, blocked termination, and latency, but bypass Leaderboard/ScenarioRunner and are not an official driving score. |
+| CARLA closed-loop evaluation | Route-conditioned INT8 full-route diagnostic completed; four-backend historical gate retained | The corrected INT8 UniAD-tiny route reaches the Town03 destination with zero collisions. The earlier four-backend model-controlled run remains a historical blocked diagnostic; neither protocol is an official Bench2Drive score. |
 
 ## Verified results
 
@@ -164,9 +164,9 @@ The accepted rerun uses the TensorRT 10.7 runtime matching NVIDIA's published DR
 
 The table above is explicitly the raw TensorRT `outs_planning` output. Its latency JSON records `collision_optimization_enabled=false`; therefore its collision columns must not be compared directly with the original Python model's `use_col_optim=True` output. The enqueue/forward ordering is `FP32 > FP16 > INT8`, matching the NVIDIA example qualitatively. Relative to FP32 enqueue, FP16 is `1.33x` faster and INT8 is `1.44x` faster; INT8 is `1.08x` faster than FP16 on RTX 4090. Synchronized forward gives `1.32x` FP32-to-INT8 and `1.06x` FP16-to-INT8 speedups.
 
-NVIDIA explicitly defines its `planning MSE` column as the mean Euclidean L2 distance between corresponding TensorRT and PyTorch trajectory points, despite the MSE label. It is not the coordinate-wise squared error and is not obtained by squaring the mean L2. For FP32, mean point L2 is `0.003772 m`, coordinate MSE is `2.2955e-05 m2`, mean squared point L2 is `4.5909e-05 m2`, and square-of-mean L2 is `1.4229e-05 m2`.
+The local tutorial text defines its legacy `planning MSE` column as the average Euclidean L2 distance between corresponding TensorRT and PyTorch trajectory points, despite the MSE label. Our evaluator therefore computes `mean(norm(delta, axis=-1))` and reports coordinate-wise squared MSE and mean squared point-L2 separately. The public repository does not expose the script that generated the legacy table, so the numerical table cannot prove a hidden squaring step. For FP32, the four auditable aggregates are mean point L2 `0.003772 m`, coordinate MSE `2.2955e-05 m2`, mean squared point L2 `4.5909e-05 m2`, and square-of-mean L2 `1.4229e-05 m2`; they are not interchangeable.
 
-The calibration fix improves raw INT8 planning-to-PyTorch L2 from the superseded `0.274626 m` to `0.183680 m` (`33.1%`), but does not reproduce NVIDIA's `0.0502 m`; raw FP32 `0.003772 m` also remains above NVIDIA's `9.2417e-07 m`.
+The remaining planning gap has two distinct causes. FP32 is already `0.003772 m` rather than `9.2417e-07 m`, so it cannot be repaired by calibration; a frame-0 dynamic-901 probe (`0.006211 m`) matched the fixed-capacity frame-0 result, ruling out static padding as the primary cause. Reduced precision is dominated by scene-initial state sensitivity: across 150 scene starts, FP16 is `3.0777 m` on scene-first frames but `0.04355 m` after removing them (close to NVIDIA `0.0458 m`); INT8 is `3.0398 m` and `0.11067 m`, respectively. The raw full-sequence values remain `0.119177/0.183680 m`, so the accepted report does not claim full official parity. The audit is retained at `UniAD/evidence/trained_tiny_exact107_full6018/planning_metric_protocol_audit.json`.
 
 ### Corrected trained-tiny temporal deployment, full 6018 frames: `use_col_optim=True` protocol
 
@@ -183,9 +183,9 @@ The original UniAD evaluation config sets `use_col_optim=True`. The TensorRT gra
 
 The full Python `results.pkl` contains the collision-optimized output produced by the epoch-20 checkpoint. The first 6018 trajectories were extracted and checked against the evaluator ground truth with maximum alignment delta `0`, creating the missing same-protocol reference. This resolves the main collision inflation: raw FP32 box collision `0.667442%` falls to `0.340645%`; FP16 and INT8 are `0.301872%` and `0.324028%`, close to NVIDIA's `0.27%`. Average L2 is also in the official range, but planning MSE is not reproduced: local `0.188433/0.198145/0.257322 m` remains materially above NVIDIA's `9.2417e-7/0.0458/0.0502 m`. The remaining temporal/export/optimizer delta is therefore still an open accuracy-parity defect rather than a calibration-only issue.
 
-### CARLA Town03 model-controlled closed-loop diagnostic
+### CARLA Town03 model-controlled closed-loop diagnostic (historical, superseded)
 
-The rerun uses one dense GlobalRoutePlanner route, six synchronized RGB cameras, route navigation commands, no traffic, inference every 10 frames, and a 400-frame blocked threshold. Both PyTorch and TensorRT services now apply occupancy-aware collision optimization before control. A separate CARLA physics probe found this reused 0.9.10.1 binary stayed in neutral under direct automatic control; setting `manual_gear_shift=true, gear=1` restored longitudinal motion. The latency table excludes the first cold inference.
+The earlier rerun uses one dense route and model-controlled steering. Its blocked results are retained for root-cause history only. The route-conditioned controller below supersedes it: the global route target controls steering, the model trajectory controls speed, and explicit forward gear is set for the reused CARLA 0.9.10.1 binary.
 
 | Backend | Frames / result | Route progress | Unique collisions / lane invasions | Forward mean / p50 / p99 | Service E2E mean / p50 / p99 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -194,9 +194,19 @@ The rerun uses one dense GlobalRoutePlanner route, six synchronized RGB cameras,
 | TensorRT FP16 | 585 / blocked | 1.5861% | 22 / 0 | 18.419 / 16.165 / 36.109 ms | 193.770 / 192.949 / 223.861 ms |
 | TensorRT INT8(EQ)+FP16 | 904 / blocked | 1.2936% | 38 / 0 | 19.185 / 18.379 / 29.780 ms | 192.501 / 197.121 / 241.740 ms |
 
-FP32 post-processing changed 13 of 59 model calls and INT8 changed 2 of 91; PyTorch and FP16 predicted no occupied points requiring correction on this route. Explicit gear fixes the earlier neutral-vehicle defect, but every backend still stalls after early contact. The failure is shared by PyTorch and TensorRT and remains attributable to the approximate camera/domain contract, inference held for ten simulator frames, and the custom single-target controller rather than an INT8-only runtime failure.
+These rows document the previous single-target controller failure and are not used as the final INT8 CARLA result.
 
 The reused V2Xverse asset tree contains a 42-route catalogue with 4829 scenario trigger-event configurations, plus 233 training-split, 105 evaluation, and 66 additional route definitions. This evidence executed only `routes_town03_1.xml` and spawned zero scenario events because the custom runner bypasses Leaderboard/ScenarioRunner. It can report progress, collision groups, lane invasions, blocked reason, speed, and latency, but not a valid official route completion or Driving Score until the model is wrapped as a leaderboard agent and run through that evaluator.
+
+### CARLA Town03 route-conditioned INT8 full-route rerun
+
+The corrected route protocol uses the same dense 1171-waypoint, 1181.667 m Town03 route, six synchronized RGB cameras, no traffic, 0.05 s synchronous ticks, inference every 10 frames, global-route steering, model-trajectory speed control with EMA `0.35`, and a 500-frame blocked threshold. It reaches the destination without collision; lane invasion is reported separately. The service uses one TensorRT execution context and fixed track capacity, so no per-frame shape profile rebuild is involved.
+
+| Backend | Frames / result | Progress / final distance | Collision / lane invasion | Forward mean / p50 / p99 | Service E2E mean / p50 / p99 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TensorRT INT8(EQ)+FP16 | 6134 / destination reached | 99.5845% / 4.944 m | 0 / 29 | 15.510 / 14.414 / 24.902 ms | 190.216 / 189.562 / 212.623 ms |
+
+The first long-route run stopped at frame 1850 because `prev_track_intances1_out` became non-finite. This was not OOM: the CARLA server and CUDA context were alive, and the service returned a finite planning tensor while a recurrent tracking tensor contained two invalid values. The service now discards only invalid recurrent outputs, resets the temporal state, records the recovery, and continues; the accepted rerun recovered once at frame 1860 and completed the route with zero collisions. The raw result is in `/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/carla_route_conditioned_v4_temporal_recovery_fullroute6500_20260812/tensorrt_int8/closed_loop_metrics.json`, with a source-only summary at `UniAD/evidence/carla_route_conditioned_int8_fullroute/summary.json`. This custom route protocol does not provide a Bench2Drive Driving Score.
 
 ## Official-patch and base-port audit
 
@@ -227,6 +237,13 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 6. Update this document and push one commit after each completed major round.
 
 ---
+
+## Iteration 013 - 2026-08-12T21:08:00-07:00
+
+- Audited the planning metric contract. The local official tutorial says `planning MSE` is mean trajectory-point Euclidean L2; coordinate MSE, mean squared point-L2, and square-of-mean L2 are now emitted separately. A 150-scene audit found FP16 `0.04355 m` after excluding scene-first frames versus full-sequence `0.119177 m`; INT8 was `0.11067 m` versus `0.183680 m`. The public source does not expose the legacy table generator, so a hidden squared interpretation is not claimed.
+- Added route-conditioned steering and model-speed control to the CARLA runner. The first full INT8 run exposed long-route recurrent-state non-finites at frame 1850; this was not OOM. The service now resets only invalid recurrent state, records the event, and continues with finite planning output.
+- Completed UniAD-tiny INT8 Town03 route: `6134` frames, `99.5845%` progress, destination reached at `4.944 m`, zero collisions, 29 lane invasions, one temporal-state recovery, forward `15.510/14.414/24.902 ms`, service E2E `190.216/189.562/212.623 ms` (mean/p50/p99).
+- Kept the earlier four-backend blocked CARLA table as historical; it bypassed dense-route conditioning and is not a final route-completion result.
 
 ## Iteration 012 - 2026-08-12T19:17:28-07:00
 
