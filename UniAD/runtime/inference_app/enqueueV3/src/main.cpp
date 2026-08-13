@@ -139,9 +139,9 @@ void load_input(const std::string& input_pth, std::vector<UniAD::KernelInput>& i
     return;
 }
 
-static void visualize(const std::vector<unsigned char*> images, const UniAD::KernelInput& input_instance, const UniAD::KernelOutput& output_instance, const std::string& save_path,
+static void visualize(const std::vector<unsigned char*> images, const UniAD::KernelInput& input_instance, const UniAD::KernelOutput& output_instance,
+                      const std::vector<std::pair<float, float>>& planning_traj, const std::string& save_path,
                       cudaStream_t stream) {
-    std::vector<std::pair<float, float>> planning_traj = decode_planning_traj(output_instance);
     std::string command = decode_command(input_instance);
     std::vector<std::vector<float>> pred_bbox = decode_bbox(output_instance);
 
@@ -549,6 +549,17 @@ static void write_summary_json(
             << "  \"fixed_track_input_count\": " << fixed_track_count << ",\n"
             << "  \"collision_optimization_enabled\": " << (collision_optimization ? "true" : "false") << ",\n"
             << "  \"carry_state_across_scenes\": " << (carry_state_across_scenes ? "true" : "false") << ",\n"
+            << "  \"collision_optimization_audit\": {\n"
+            << "    \"decode_calls\": " << collision_optimization_audit().decode_calls << ",\n"
+            << "    \"enabled_calls\": " << collision_optimization_audit().enabled_calls << ",\n"
+            << "    \"frames_with_positive_occupancy\": " << collision_optimization_audit().frames_with_positive_occupancy << ",\n"
+            << "    \"positive_occupancy_cells\": " << collision_optimization_audit().positive_occupancy_cells << ",\n"
+            << "    \"frames_with_candidates\": " << collision_optimization_audit().frames_with_candidates << ",\n"
+            << "    \"candidate_points\": " << collision_optimization_audit().candidate_points << ",\n"
+            << "    \"frames_modified\": " << collision_optimization_audit().frames_modified << ",\n"
+            << "    \"points_modified\": " << collision_optimization_audit().points_modified << ",\n"
+            << "    \"max_point_delta_m\": " << collision_optimization_audit().max_point_delta_m << "\n"
+            << "  },\n"
             << "  \"definitions\": {\n"
             << "    \"model_enqueue\": \"CUDA event around TensorRT enqueueV3 on the inference stream\",\n"
             << "    \"inference_call\": \"Synchronized wall time for H2D, enqueueV3, DDS handling and D2H\",\n"
@@ -659,9 +670,15 @@ int main(int argc, char** argv) {
     std::ofstream frame_metrics(metrics_pth + ".frames.csv");
     frame_metrics << "frame,scene_changed,model_enqueue_ms,inference_call_ms,end_to_end_ms,decoded_boxes\n";
     std::ofstream planning_predictions(output_pth + "/planning_predictions.csv");
+    std::ofstream raw_planning_predictions(output_pth + "/planning_predictions_raw.csv");
     planning_predictions << "frame";
-    for (int step = 0; step < 6; ++step) planning_predictions << ",x" << step + 1 << ",y" << step + 1;
+    raw_planning_predictions << "frame";
+    for (int step = 0; step < 6; ++step) {
+        planning_predictions << ",x" << step + 1 << ",y" << step + 1;
+        raw_planning_predictions << ",x" << step + 1 << ",y" << step + 1;
+    }
     planning_predictions << "\n";
+    raw_planning_predictions << "\n";
 
     std::vector<double> model_samples;
     std::vector<double> inference_samples;
@@ -712,6 +729,8 @@ int main(int argc, char** argv) {
         checkRuntime(cudaStreamSynchronize(stream));
         const auto inference_end = std::chrono::steady_clock::now();
 
+        const std::vector<std::pair<float, float>> raw_planning =
+            decode_raw_planning_traj(*output);
         const std::vector<std::pair<float, float>> planning = decode_planning_traj(*output);
         if (!finite_planning(planning)) {
             fprintf(stderr, "[ERROR] Non-finite planning trajectory at frame %d.\n", i);
@@ -734,9 +753,15 @@ int main(int argc, char** argv) {
         planning_predictions << i;
         for (const auto& point : planning) planning_predictions << "," << point.first << "," << point.second;
         planning_predictions << "\n";
+        raw_planning_predictions << i;
+        for (const auto& point : raw_planning) {
+            raw_planning_predictions << "," << point.first << "," << point.second;
+        }
+        raw_planning_predictions << "\n";
 
         if (enable_visualization) {
-            visualize(images, input, *output, img_dump_path + "/" + std::to_string(i) + ".jpg", stream);
+            visualize(images, input, *output, planning,
+                      img_dump_path + "/" + std::to_string(i) + ".jpg", stream);
         }
         free_images(images);
         if (!disable_temporal_state) previous_output = std::move(output);

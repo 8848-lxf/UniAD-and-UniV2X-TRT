@@ -13,9 +13,9 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 - PyTorch environment: existing isolated UniAD/PyTorch 1.12 environment
 - Deployment environment: `modelopt_uniad_dl4agx`
 - CUDA compiler: Conda environment toolchain only
-- TensorRT is intentionally split by tutorial stage: x86 explicit-QDQ quantization/plugin work uses 10.9.0.34 from `/home/lixingfeng/uniad-trt/TensorRT-10.9_x86_cu118`; NVIDIA's published DRIVE Orin-X engine-build/runtime stage uses 10.7, so the already-serialized trained-tiny engines continue with their matching 10.7 runtime under `/data/lxf/uniad_deployment_outputs/toolchains`
+- Local x86 primary chain: TensorRT 10.9.0.34 from `/home/lixingfeng/uniad-trt/TensorRT-10.9_x86_cu118` for explicit-QDQ quantization, plugin compilation, engine build, runtime, and evaluation. NVIDIA's published DRIVE Orin-X engine-build/runtime table uses TensorRT 10.7; local 10.7 artifacts under `/data/lxf/uniad_deployment_outputs/toolchains` are historical controls only.
 - ModelOpt 0.29 source/editable target: `/home/lixingfeng/UniAD_examine/HEAL/prune_model/Model-Optimizer-0.29.0`, restored from the existing local `/home/lixingfeng/uniad-trt/uniad-2.0/TensorRT-Model-Optimizer-release-0.29.0` copy without reinstalling the conda environment
-- GPU used for current full engine evaluation: RTX 4090, logical GPU 6
+- GPUs used for the current parallel full engine evaluation: RTX 4090, logical GPUs 4-7
 
 ## Completion matrix
 
@@ -24,8 +24,8 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | NVIDIA tiny/random ONNX reference flow | Completed as a deployment smoke | All three precisions ran; random weights make its planning accuracy non-physical and unsuitable for accuracy reproduction. |
 | Trained UniAD-tiny stage 1/2 | Completed | Stage 1 epoch 6 and stage 2 epoch 20 follow `documents/train_export.md`; both training and deployment `ckpts` entries resolve to one registry. |
 | Trained UniAD-tiny PyTorch full validation | Completed | 6019 frames; detection, tracking, map, occupancy, planning, and latency are recorded below. |
-| Trained UniAD-tiny ONNX/calibration/engines | Completed for scene-reset-315 and official-literal-168 calibration | The old 64-sample graph is superseded. Both variants use independent recurrent validation feeds, bounded entropy histograms, and fresh exact-TensorRT-10.7 static-1600 engines. |
-| Trained UniAD-tiny temporal TensorRT evaluation | Completed for FP32/FP16/corrected INT8 | All three precisions completed 6018 frames with finite output, scene reset, fixed 1600 capacity, planning metrics, and mean/p50/p99 latency. |
+| Trained UniAD-tiny ONNX/calibration/engines | Completed on TensorRT 10.9 | The accepted INT8 graph uses 168 independent official-literal recurrent feeds and protects only two occupancy-terminal activation Q/DQ paths with FP16. The 315-feed graph is retained as a calibration-semantics control. |
+| Trained UniAD-tiny temporal TensorRT evaluation | Completed for TensorRT 10.9 FP32/FP16/accepted INT8 | All three precisions completed 6018 finite frames with official external-state carry semantics, fixed 1600 capacity, raw/optimized planning metrics, collision-trigger audits, and mean/p50/p99 latency. |
 | UniAD-base config and checkpoint adaptation | Completed | Uses the base graph, base input metadata, and dynamic temporal-track profile; the checkpoint is not inserted into the tiny graph. |
 | Base FP32 ONNX export | Completed | Local artifact excluded from Git. |
 | Base explicit-QDQ INT8 graph | Completed | ONNX check passes with expected TRT plugin-domain handling; MatMul weights/activations are excluded from INT8. |
@@ -250,6 +250,70 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 - Official-literal INT8 raw result: avg. L2 `0.764093 m`, box collision `0.695137%`, NVIDIA-defined planning MSE `0.181729 m`, coordinate MSE `0.177157 m2`. Enqueue/inference/E2E mean-p50-p99 are `11.640/11.749/13.391`, `15.567/15.622/17.587`, and `90.747/89.656/105.139 ms`.
 - Accuracy parity is not accepted: NVIDIA INT8 reports avg. L2 `1.0029 m`, collision `0.27%`, and planning MSE `0.0502 m`. The local avg. L2 is better because the checkpoint differs, but collision and trajectory-to-PyTorch parity are materially worse. The official-literal calibration slightly improves planning MSE over scene-reset-315 (`0.181729` versus `0.183680 m`) while worsening optimized collision (`0.695137%` versus `0.324028%`).
 - The H800-reported 196-feed natural/scene-reset package is not aligned with the literal NVIDIA temporal semantics. Its Conv `104/104`, Gemm `45/53`, and MatMul weight `0/504` coverage can be layer-aligned with this run, but its feed list must be regenerated and frame/feed hashes compared before cross-machine calibration parity can be claimed.
+
+---
+
+## Iteration 015 - 2026-08-13T11:55:00-07:00
+
+This iteration supersedes the local TensorRT 10.7 trained-tiny engine/runtime rows as the RTX 4090 primary result. TensorRT 10.7 artifacts remain only as a historical, serialization-compatible control for NVIDIA's DRIVE Orin-X table. The active local chain is TensorRT `10.9.0.34` from `/home/lixingfeng/uniad-trt/TensorRT-10.9_x86_cu118`, conda CUDA `11.8.89`, and conda GCC `11.2.0`; `ldd` and CMake compiler detection prove that no system CUDA or system compiler was used.
+
+NVIDIA's public table remains a TensorRT 10.7 DRIVE Orin-X reference:
+
+| Framework / precision | Official latency | FPS | avg. L2 | avg. Col | planning MSE |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| PyTorch 1.12 FP32 | 843.5172 ms | 1.18 | 0.9986 | 0.27% | 0 |
+| TensorRT 10.7 FP32 | 64.0469 ms | 15.61 | 0.9986 | 0.27% | 9.2417e-7 |
+| TensorRT 10.7 FP16 | 49.7559 ms | 20.10 | 1.0021 | 0.26% | 0.0458 |
+| TensorRT 10.7 INT8(EQ)+FP16 | 39.3125 ms | 25.44 | 1.0029 | 0.27% | 0.0502 |
+
+### Planning-difference metric audit
+
+The public prose calls `planning MSE` the average pointwise Euclidean L2 distance between TensorRT and PyTorch trajectories. The name and the FP32 value `9.2417e-7`, however, resemble a squared-error statistic, and NVIDIA does not publish the table generator. The evaluator therefore no longer asserts that the metric is definitely not squared. It reports mean point L2, coordinate MSE, and mean squared point distance separately.
+
+On byte-identical saved frame-5 inputs, TensorRT 10.9 FP32 versus PyTorch is:
+
+| Statistic | Value |
+| --- | ---: |
+| mean point L2 | 2.763435e-4 m |
+| coordinate MSE | 6.753211e-8 m2 |
+| mean squared point distance | 1.350642e-7 m2 |
+
+This proves that the earlier full-application FP32 point-L2 gap was dominated by preprocessing/recursive-runner protocol rather than the engine's same-input numerical error. It also confirms that a squared statistic is numerically much closer to NVIDIA's FP32 table value, but does not prove which squared reduction NVIDIA used.
+
+### Calibration and occupancy root cause
+
+The official-literal calibration scan processed 6019 frames, initialized external temporal state only at global sample zero, carried external state across scene changes, set `use_prev_bev=0` at scene changes, and selected 168 independent shape-901 feeds. The runtime audit confirms that `use_prev_bev=0` occurs only on 150 scene starts; 5868 later frames retain temporal propagation.
+
+The unprotected 168-feed INT8 graph failed the occupancy branch: all 6018 `seg_out` tensors were zero, so collision optimization had zero candidate points and changed zero trajectories. This is why its raw and supposedly optimized outputs were byte-identical and its box collision stayed at `0.695137%`.
+
+Backward scale tracing found the largest relevant discrepancy at the final occupancy product: `onnx::Mul_26440_scale` was `0.0004998153` in the official-literal graph versus `0.007513786` in the occupancy-valid 315-feed control, a factor of about 15.04. The accepted mixed-precision graph bypasses only the activation Q/DQ pairs on `onnx::Mul_26440` and `onnx::Mul_26447`; it removes four Q/DQ nodes while retaining 375 QuantizeLinear and 524 DequantizeLinear nodes. Conv/Gemm/other accepted explicit-QDQ coverage is unchanged.
+
+A 200-frame gate recovered positive occupancy on 164 frames and modified 68 trajectories, versus FP32 165/70. The full 6018-frame accepted engine has positive occupancy on 4808 frames and modifies 2736 trajectories. The failed unprotected engine is retained only as negative evidence.
+
+### TensorRT 10.9 full-validation result
+
+All rows use one execution context, fixed capacity 1600, official external-state carry semantics, 150 scene-start `use_prev_bev=0` resets, and 6018 finite frames. The four full runs were executed concurrently on logical GPUs 4-7; their latency columns are complete per-run measurements but include shared CPU/I/O contention. `Raw` is direct `outs_planning`; `optimized` applies the audited occupancy-aware collision post-process from the same forward. Planning difference for raw output uses raw deployment PyTorch; optimized planning difference uses full Python `use_col_optim=True` output.
+
+| Metric | PyTorch reference | TRT 10.9 FP32 | TRT 10.9 FP16 | TRT 10.9 INT8(EQ)+FP16 accepted |
+| --- | ---: | ---: | ---: | ---: |
+| raw avg. L2 | 0.780738 m | 0.780422 m | 0.758029 m | 0.764122 m |
+| raw box Col | 0.667442% | 0.667442% | 0.628670% | 0.695137% |
+| raw mean point L2 vs PyTorch | 0 | 0.003771 m | 0.119161 m | 0.179641 m |
+| raw coordinate MSE vs PyTorch | 0 | 2.28579e-5 m2 | 0.170862 m2 | 0.177324 m2 |
+| optimized avg. L2 | 0.826565 m | 0.819064 m | 0.796739 m | 0.801195 m |
+| optimized box Col | 0.221558% | 0.343414% | 0.307411% | 0.332336% |
+| optimized mean point L2 vs optimized Python | 0 | 0.188819 m | 0.198107 m | 0.253696 m |
+| positive occupancy frames | n/a | 4823 | 4802 | 4808 |
+| collision-optimizer modified frames | n/a | 2766 | 2744 | 2736 |
+| model enqueue mean / p50 / p99 | n/a | 17.635 / 17.517 / 20.092 ms | 12.318 / 12.357 / 13.154 ms | 11.236 / 10.873 / 13.202 ms |
+| synchronized forward mean / p50 / p99 | n/a | 21.616 / 21.430 / 25.307 ms | 16.315 / 16.301 / 17.398 ms | 15.095 / 14.766 / 17.260 ms |
+| end-to-end mean / p50 / p99 | n/a | 104.780 / 104.185 / 113.197 ms | 98.507 / 97.822 / 108.146 ms | 96.045 / 95.329 / 106.012 ms |
+
+For the official `trtexec --iterations=100` timing boundary at track shape 901, the three engines were rerun serially on the same logical GPU after 1000 ms warmup. GPU Compute Time mean/p50/p99 is FP32 `16.3179/16.2760/20.5210 ms`, FP16 `9.8777/9.8729/9.9471 ms`, and accepted INT8 `9.9588/9.9512/10.2083 ms`. FP32 to reduced precision speedup is reproduced. FP16 and INT8 are statistically tied on RTX 4090, so the Orin-X FP16-to-INT8 speedup is not reproduced on this hardware.
+
+Acceptance is partial. Runtime, finite outputs, TensorRT 10.9 isolation, official calibration temporal semantics, occupancy validity, and collision post-processing pass. Optimized avg. L2 and collision are close in range to NVIDIA's example. Exact official planning-difference parity remains unresolved because the public metric reduction is ambiguous and the full recursive application still differs materially from the optimized Python trajectory.
+
+Evidence: `UniAD/evidence/trained_tiny_trt109_full6018/summary.json`. Large ONNX, engine, timing-cache, prediction, and log artifacts remain excluded under `/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt109_20260813`.
 
 ---
 

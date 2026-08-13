@@ -179,15 +179,20 @@ def main():
         result["planning_output_mean_point_l2_m"] = mean_point_l2
         result["planning_output_coordinate_mse_m2"] = coordinate_mse
         result["planning_output_mean_squared_point_l2_m2"] = 2.0 * coordinate_mse
-        # Backward-compatible keys for reports generated before the units were
-        # made explicit. NVIDIA's table calls this value "planning MSE", but
-        # its documentation defines it as average trajectory-point L2.
+        # Keep the legacy key while reporting all plausible interpretations.
+        # NVIDIA's prose says average point L2, while its metric name and FP32
+        # magnitude resemble a squared error; the public tutorial has no metric
+        # implementation that resolves this contradiction.
         result["planning_reference_avg_l2_m"] = mean_point_l2
         result["planning_reference_coordinate_mse"] = coordinate_mse
         result["planning_mse"] = mean_point_l2
+        result["planning_mse_documented_mean_point_l2_m"] = mean_point_l2
+        result["planning_mse_literal_coordinate_mse_m2"] = coordinate_mse
+        result["planning_mse_literal_mean_squared_point_l2_m2"] = 2.0 * coordinate_mse
         result["planning_mse_definition"] = (
-            "NVIDIA table semantics: mean Euclidean L2 distance in meters "
-            "between TensorRT and PyTorch trajectory points; not a squared error"
+            "Ambiguous public NVIDIA naming: prose says mean Euclidean point L2, "
+            "but the name and FP32 magnitude resemble squared error; all three "
+            "candidate statistics are reported explicitly"
         )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
