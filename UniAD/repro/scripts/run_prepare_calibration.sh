@@ -9,6 +9,7 @@ UNIAD_GPU=${UNIAD_GPU:-0}
 
 CHECKPOINT=${1:-${REPRO_ROOT}/artifacts/checkpoints/tiny_imgx0.25_e2e_ep20.pth}
 MAX_CALIBRATION_SAMPLES=${2:-0}
+TEMPORAL_PROTOCOL=${TEMPORAL_PROTOCOL:-scene_reset}
 if [[ ! -f "${CHECKPOINT}" ]]; then
   echo "Missing stage-2 checkpoint: ${CHECKPOINT}" >&2
   exit 2
@@ -32,4 +33,5 @@ exec python -m torch.distributed.launch \
   --dataset-split test \
   --workers-per-gpu "${UNIAD_DATALOADER_WORKERS:-8}" \
   --calibration-output "${ARTIFACT_ROOT}/calibration/calib_data_shape0_901.npz" \
-  --max-calibration-samples "${MAX_CALIBRATION_SAMPLES}"
+  --max-calibration-samples "${MAX_CALIBRATION_SAMPLES}" \
+  --temporal-protocol "${TEMPORAL_PROTOCOL}"

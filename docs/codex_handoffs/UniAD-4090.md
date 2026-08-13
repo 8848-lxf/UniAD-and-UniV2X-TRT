@@ -24,7 +24,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | NVIDIA tiny/random ONNX reference flow | Completed as a deployment smoke | All three precisions ran; random weights make its planning accuracy non-physical and unsuitable for accuracy reproduction. |
 | Trained UniAD-tiny stage 1/2 | Completed | Stage 1 epoch 6 and stage 2 epoch 20 follow `documents/train_export.md`; both training and deployment `ckpts` entries resolve to one registry. |
 | Trained UniAD-tiny PyTorch full validation | Completed | 6019 frames; detection, tracking, map, occupancy, planning, and latency are recorded below. |
-| Trained UniAD-tiny ONNX/calibration/engines | Completed with corrected validation315 calibration | The old 64-sample graph is superseded. The replacement uses 315 independent recurrent validation feeds, bounded entropy histograms, and a fresh exact-TensorRT-10.7 static-1600 engine. |
+| Trained UniAD-tiny ONNX/calibration/engines | Completed for scene-reset-315 and official-literal-168 calibration | The old 64-sample graph is superseded. Both variants use independent recurrent validation feeds, bounded entropy histograms, and fresh exact-TensorRT-10.7 static-1600 engines. |
 | Trained UniAD-tiny temporal TensorRT evaluation | Completed for FP32/FP16/corrected INT8 | All three precisions completed 6018 frames with finite output, scene reset, fixed 1600 capacity, planning metrics, and mean/p50/p99 latency. |
 | UniAD-base config and checkpoint adaptation | Completed | Uses the base graph, base input metadata, and dynamic temporal-track profile; the checkpoint is not inserted into the tiny graph. |
 | Base FP32 ONNX export | Completed | Local artifact excluded from Git. |
@@ -235,6 +235,21 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 4. Replace the in-memory monolithic calibration collector with a bounded-memory streaming or sharded protocol before expanding UniAD-base calibration; one 8-sample NPZ is already about 1.2 GiB.
 5. Wrap the post-processed backend as a Leaderboard/ScenarioRunner agent and validate the existing route/scenario catalogues before requesting a formal driving score; retain the current Town03 result only as a custom diagnostic.
 6. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 014 - 2026-08-13T08:19:03-07:00
+
+- Added an auditable `official_literal` calibration mode matching NVIDIA's script semantics: only global `sample_id == 0` initializes external recurrent state; scene changes carry the previous external track/BEV/timestamp/pose outputs and signal the model-internal reset with `use_prev_bev=0`. The existing per-scene reset remains the default for compatibility.
+- Fixed only the two known saving defects: calibration batches are accumulated instead of overwriting `npz_data`, and the sample counter is not reset inside the loop. The 24-input exported-graph schema is unchanged.
+- Sequentially processed all 6019 validation frames with the trained tiny epoch-20 checkpoint. Official-literal shape 901 selected 168 frames: 5 with `use_prev_bev=0` and 163 recursive frames. All 168 NPZ signatures and all 168 provider dictionaries are independent and unique.
+- Compared calibration sets: official-literal 168 and scene-reset 315 intersect on 160 frames; 8 are literal-only and 155 are reset-only. This proves that the earlier 315 count is primarily a temporal-protocol difference, not an NPZ-saving bug.
+- Completed bounded entropy quantization with ModelOpt 0.29, TensorRT 10.9 calibration EP, `dq_only`, global MatMul weight exclusion, and `max_bins=2048`. Twelve expanded histograms were symmetrically rebinned with exact count preservation. The graph has 460 reported quantized nodes: all 104 Conv, 45 Gemm, no MatMul INT8 weights, and 71 MatMul activation-QDQ adjacencies.
+- Built a fresh static-1600 engine with isolated TensorRT 10.7/CUDA 11.8 and completed 6018/6018 finite frames. Artifact SHA256 values are recorded in `official_literal_calibration_full168_summary.json`.
+- Added optional runtime `UNIAD_CARRY_STATE_ACROSS_SCENES=1`. It carries external outputs across scene boundaries while keeping `use_prev_bev=0`; the latency JSON records the protocol. Carry and scene-reset application outputs were bit-identical over all 6018 frames, confirming that the model-internal reset masks the carried external state at scene changes.
+- Official-literal INT8 raw result: avg. L2 `0.764093 m`, box collision `0.695137%`, NVIDIA-defined planning MSE `0.181729 m`, coordinate MSE `0.177157 m2`. Enqueue/inference/E2E mean-p50-p99 are `11.640/11.749/13.391`, `15.567/15.622/17.587`, and `90.747/89.656/105.139 ms`.
+- Accuracy parity is not accepted: NVIDIA INT8 reports avg. L2 `1.0029 m`, collision `0.27%`, and planning MSE `0.0502 m`. The local avg. L2 is better because the checkpoint differs, but collision and trajectory-to-PyTorch parity are materially worse. The official-literal calibration slightly improves planning MSE over scene-reset-315 (`0.181729` versus `0.183680 m`) while worsening optimized collision (`0.695137%` versus `0.324028%`).
+- The H800-reported 196-feed natural/scene-reset package is not aligned with the literal NVIDIA temporal semantics. Its Conv `104/104`, Gemm `45/53`, and MatMul weight `0/504` coverage can be layer-aligned with this run, but its feed list must be regenerated and frame/feed hashes compared before cross-machine calibration parity can be claimed.
 
 ---
 

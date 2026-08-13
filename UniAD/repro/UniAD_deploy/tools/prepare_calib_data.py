@@ -80,6 +80,15 @@ def parse_args():
     parser.add_argument(
         '--workers-per-gpu', type=int, default=8,
         help='DataLoader workers; ordering remains deterministic because shuffle is disabled')
+    parser.add_argument(
+        '--temporal-protocol',
+        choices=('scene_reset', 'official_literal'),
+        default='scene_reset',
+        help=(
+            'temporal state protocol. scene_reset clears external recurrent state '
+            'at each scene boundary; official_literal initializes only at global '
+            'sample_id 0 and carries external state across scene boundaries while '
+            'use_prev_bev=0 lets the model reset internally'))
     parser.add_argument('--bev-height', type=int, default=50)
     parser.add_argument('--img-height', type=int, default=256)
     parser.add_argument('--img-width', type=int, default=416)
@@ -407,7 +416,15 @@ def main():
         timestamp = data["timestamp"][0] if data["timestamp"] is not None else None
         scene_token = img_metas[0][0]["scene_token"]
         new_scene = scene_token != previous_scene_token
-        if new_scene:
+        # The NVIDIA script initializes state once for the whole validation
+        # sequence.  Scene boundaries are signaled through use_prev_bev and
+        # are consumed by the model's internal temporal reset logic.
+        reset_external_state = (
+            sample_id == 0
+            if args.temporal_protocol == 'official_literal'
+            else new_scene
+        )
+        if reset_external_state:
             timestamp0 = timestamp
             prev_pos = 0
             prev_angle = 0
@@ -442,14 +459,14 @@ def main():
                     onnx_inputs[key] = np.array([img_h,img_w]).astype(np.float32)
                     onnx_inputs[key] = torch.from_numpy(onnx_inputs[key]).cuda()
                 elif key=='prev_bev':
-                    if new_scene:
+                    if reset_external_state:
                         onnx_inputs[key] = torch.from_numpy(np.zeros([bevh**2, 1, 256]).astype(np.float32)).cuda()
                     else:
                         onnx_inputs[key]= bev_embed
                 elif key=='max_obj_id':
-                    onnx_inputs[key] = torch.Tensor([0]).int().cuda() if new_scene else max_obj_id
+                    onnx_inputs[key] = torch.Tensor([0]).int().cuda() if reset_external_state else max_obj_id
                 elif 'prev_track_intances' in key:
-                    if new_scene:
+                    if reset_external_state:
                         onnx_inputs[key] = test_track_instances[int(key[19:])].cuda()
                     else:
                         if int(key[19:]) in (2,7,10): # 2,7,10 will not be used in ONNX graph
@@ -463,11 +480,11 @@ def main():
                             if onnx_inputs[key].dtype == torch.int64:
                                 onnx_inputs[key] = onnx_inputs[key].int()
                 elif key=='prev_l2g_r_mat':
-                    onnx_inputs[key] = l2g_r_mat0.float().cuda() if new_scene else prev_l2g_r_mat_out
+                    onnx_inputs[key] = l2g_r_mat0.float().cuda() if reset_external_state else prev_l2g_r_mat_out
                 elif key=='prev_l2g_t':
-                    onnx_inputs[key] = l2g_t0.float().cuda() if new_scene else prev_l2g_t_out
+                    onnx_inputs[key] = l2g_t0.float().cuda() if reset_external_state else prev_l2g_t_out
                 elif key=='prev_timestamp':
-                    onnx_inputs[key] = torch.zeros([1]).float().cuda() if new_scene else prev_timestamp_out
+                    onnx_inputs[key] = torch.zeros([1]).float().cuda() if reset_external_state else prev_timestamp_out
                 elif key=='use_prev_bev':
                     onnx_inputs[key] = np.array(
                         [0 if new_scene else 1]
@@ -573,9 +590,12 @@ def main():
                 'selected_frames': calibration_frames,
                 'selected_frame_count': num_calib_data,
                 'workers_per_gpu': args.workers_per_gpu,
-                'temporal_protocol': (
-                    'Sequential forward_uniad_trt with per-scene reset and prior '
-                    'track, BEV, timestamp, l2g rotation, and l2g translation outputs'
+                'temporal_protocol': args.temporal_protocol,
+                'temporal_protocol_description': (
+                    'global sample_id==0 initialization; scene boundaries use '
+                    'use_prev_bev=0 while carrying external recurrent outputs'
+                    if args.temporal_protocol == 'official_literal' else
+                    'per-scene external recurrent-state reset'
                 ),
             }, report_file, indent=2, sort_keys=True)
             report_file.write('\n')

@@ -525,6 +525,8 @@ static void write_summary_json(
     int warmup_iterations,
     bool visualization_enabled,
     int fixed_track_count,
+    bool collision_optimization,
+    bool carry_state_across_scenes,
     const LatencySummary& model,
     const LatencySummary& inference,
     const LatencySummary& e2e) {
@@ -545,6 +547,8 @@ static void write_summary_json(
             << "  \"warmup_iterations\": " << warmup_iterations << ",\n"
             << "  \"visualization_enabled\": " << (visualization_enabled ? "true" : "false") << ",\n"
             << "  \"fixed_track_input_count\": " << fixed_track_count << ",\n"
+            << "  \"collision_optimization_enabled\": " << (collision_optimization ? "true" : "false") << ",\n"
+            << "  \"carry_state_across_scenes\": " << (carry_state_across_scenes ? "true" : "false") << ",\n"
             << "  \"definitions\": {\n"
             << "    \"model_enqueue\": \"CUDA event around TensorRT enqueueV3 on the inference stream\",\n"
             << "    \"inference_call\": \"Synchronized wall time for H2D, enqueueV3, DDS handling and D2H\",\n"
@@ -671,8 +675,14 @@ int main(int argc, char** argv) {
     const char* disable_temporal_env = std::getenv("UNIAD_DISABLE_TEMPORAL_STATE");
     const bool disable_temporal_state = disable_temporal_env != nullptr
         && std::string(disable_temporal_env) != "0";
+    const char* carry_scene_state_env = std::getenv("UNIAD_CARRY_STATE_ACROSS_SCENES");
+    const bool carry_state_across_scenes = carry_scene_state_env != nullptr
+        && std::string(carry_scene_state_env) != "0";
     if (disable_temporal_state) {
         printf("[INFO] Temporal state propagation disabled for independent-frame benchmarking.\n");
+    }
+    if (carry_state_across_scenes) {
+        printf("[INFO] External temporal state is carried across scene boundaries; use_prev_bev=0 requests the model-internal reset.\n");
     }
 
     for (int i=0; i<num_frames; ++i) {
@@ -682,7 +692,9 @@ int main(int argc, char** argv) {
         const bool scene_changed = load_input_frame(input_pth, i, input, current_scene, have_scene);
         set_fixed_track_input_shapes(input, fixed_track_count);
         if (disable_temporal_state) input.use_prev_bev[0] = 0;
-        else if (!scene_changed && previous_output) temporal_info_assign(input, *previous_output, fixed_track_count);
+        else if (previous_output && (!scene_changed || carry_state_across_scenes)) {
+            temporal_info_assign(input, *previous_output, fixed_track_count);
+        }
 
         auto images = load_images(infos, i);
         if (!valid_images(images)) {
@@ -738,6 +750,7 @@ int main(int argc, char** argv) {
     const LatencySummary e2e_summary = summarize(e2e_samples);
     write_summary_json(metrics_pth, engine_pth, plugin_pth, num_frames, num_warmup_iter,
                        enable_visualization, fixed_track_count,
+                       collision_optimization_enabled(), carry_state_across_scenes,
                        model_summary, inference_summary, e2e_summary);
     printf("[RESULT] model enqueue: mean %.3f ms, p50 %.3f ms, FPS %.3f.\n",
            model_summary.mean, model_summary.p50, 1000.0 / model_summary.mean);
