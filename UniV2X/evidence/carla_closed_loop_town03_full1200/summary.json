@@ -68,6 +68,16 @@
     "independent_intrinsics": true,
     "route_navigation_command": true
   },
-  "driving_result_interpretation": "Every backend produced active infrastructure tracks in 8 of 53 inference calls, but host cooperative matching accepted zero tracks. The offline V2X-SPD checkpoint, CARLA extrinsics/detection geometry, and host association contract are therefore not closed-loop equivalent. All backends stall after early contact; progress and events are diagnostic only because the reused CARLA tree lacks the complete official V2Xverse scenario/scoring assets.",
+  "trajectory_protocol": "Both the deployment-PyTorch and TensorRT CARLA services consumed raw outs_planning rather than the occupancy-aware offline-evaluation post-process.",
+  "available_route_asset_inventory": {
+    "v2xverse_42routes": 42,
+    "v2xverse_42scenarios_trigger_events": 4829,
+    "training_split_routes": 233,
+    "evaluation_routes": 105,
+    "additional_routes": 66,
+    "routes_executed_by_this_evidence": 1,
+    "scenario_events_spawned_by_this_evidence": 0
+  },
+  "driving_result_interpretation": "Every backend produced active infrastructure tracks in 8 of 53 inference calls, but host cooperative matching accepted zero tracks. The offline V2X-SPD checkpoint, CARLA extrinsics/detection geometry, host association contract, raw planning output, and custom controller are therefore not closed-loop equivalent. Route and scenario catalogues exist in the reused V2Xverse tree, but this custom runner bypasses its route manager and scoring protocol; progress and events remain diagnostic only.",
   "raw_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/carla_closed_loop_corrected_20260812"
 }

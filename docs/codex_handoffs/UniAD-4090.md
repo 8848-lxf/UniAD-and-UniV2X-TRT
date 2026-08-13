@@ -35,7 +35,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Base TensorRT FP32 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite metrics and no second-scale latency spikes. |
 | Base TensorRT FP16 fixed-1150 full evaluation | Completed | All 6018 frames completed with finite planning and latency summaries. |
 | Base TensorRT INT8 fixed-1150 full evaluation | Completed, preliminary calibration | All 6018 frames completed; its evidence path explicitly records the current 8-sample training calibration. |
-| CARLA closed-loop evaluation | Corrected four-backend diagnostic completed | PyTorch, FP32, FP16, and validation315 INT8 report dense-route progress, unique collision groups, blocked termination, and latency. This is not an official Bench2Drive score because the complete official assets/protocol are unavailable. |
+| CARLA closed-loop evaluation | Four-backend custom diagnostic completed; post-process rerun pending | PyTorch, FP32, FP16, and validation315 INT8 report dense-route progress, unique collision groups, blocked termination, and latency. The retained runs use raw planning and bypass the available Leaderboard/ScenarioRunner route events and scoring protocol, so they are not an official driving score. |
 
 ## Verified results
 
@@ -146,11 +146,11 @@ The first corrected entropy attempt exposed a second tool defect: 14 ORT histogr
 
 The table above is retained as the original `trtexec` diagnostic. It used the old shape-901 standalone contract, where FP16 was faster than INT8 on this RTX 4090. The corrected temporal application supersedes it for end-to-end deployment evaluation.
 
-### Corrected trained-tiny temporal deployment, full 6018 frames
+### Corrected trained-tiny temporal deployment, full 6018 frames: raw TensorRT trajectory
 
 The accepted rerun uses the exact TensorRT 10.7 runtime expected by the NVIDIA project, OpenCV-compatible half-pixel image resize, real `-10000` padding of the initial temporal tensors, fixed 1300/1600 capacities, and per-scene reset metadata. All 6018 frames completed with finite output.
 
-| Metric | Deployment PyTorch | TensorRT FP32 | TensorRT FP16 | TensorRT INT8(EQ)+FP16 |
+| Metric | Deployment PyTorch raw | TensorRT FP32 raw | TensorRT FP16 raw | TensorRT INT8(EQ)+FP16 raw |
 | --- | ---: | ---: | ---: | ---: |
 | planning avg. L2 | 0.780738 m | 0.780420 m | 0.758038 m | 0.763937 m |
 | planning point collision | 0.085854% | 0.085854% | 0.091392% | 0.088623% |
@@ -161,15 +161,30 @@ The accepted rerun uses the exact TensorRT 10.7 runtime expected by the NVIDIA p
 | synchronized forward mean / p50 / p99 | n/a | 21.141 / 20.984 / 23.884 ms | 17.027 / 16.859 / 23.287 ms | 15.992 / 16.000 / 18.088 ms |
 | end-to-end mean / p50 / p99 | n/a | 98.306 / 97.042 / 112.049 ms | 93.600 / 92.367 / 107.090 ms | 92.788 / 91.680 / 109.152 ms |
 
-The accepted enqueue/forward ordering is `FP32 > FP16 > INT8`, matching the NVIDIA example qualitatively. Relative to FP32 enqueue, FP16 is `1.33x` faster and INT8 is `1.44x` faster; INT8 is `1.08x` faster than FP16 on RTX 4090. Synchronized forward gives `1.32x` FP32-to-INT8 and `1.06x` FP16-to-INT8 speedups.
+The table above is explicitly the raw TensorRT `outs_planning` output. Its latency JSON records `collision_optimization_enabled=false`; therefore its collision columns must not be compared directly with the original Python model's `use_col_optim=True` output. The enqueue/forward ordering is `FP32 > FP16 > INT8`, matching the NVIDIA example qualitatively. Relative to FP32 enqueue, FP16 is `1.33x` faster and INT8 is `1.44x` faster; INT8 is `1.08x` faster than FP16 on RTX 4090. Synchronized forward gives `1.32x` FP32-to-INT8 and `1.06x` FP16-to-INT8 speedups.
 
 NVIDIA explicitly defines its `planning MSE` column as the mean Euclidean L2 distance between corresponding TensorRT and PyTorch trajectory points, despite the MSE label. It is not the coordinate-wise squared error and is not obtained by squaring the mean L2. For FP32, mean point L2 is `0.003772 m`, coordinate MSE is `2.2955e-05 m2`, mean squared point L2 is `4.5909e-05 m2`, and square-of-mean L2 is `1.4229e-05 m2`.
 
-The calibration fix improves INT8 planning-to-PyTorch L2 from the superseded `0.274626 m` to `0.183680 m` (`33.1%`), but does not reproduce NVIDIA's `0.0502 m`; FP32 `0.003772 m` also remains above NVIDIA's `9.2417e-07 m`. Collision remains a separate unresolved protocol mismatch: the deployment PyTorch reference box collision is already `0.667442%`, whereas the full Python 6019-frame baseline is `0.221521%` and NVIDIA reports `0.27%`. Calibration cannot repair a baseline GT/metadata/evaluator mismatch. The official C++ graph does not reconstruct the complete Python detection/tracking/map/occupancy result bundle, so engine mAP, AMOTA, map IoU, and occupancy IoU are unavailable rather than reported as zero.
+The calibration fix improves raw INT8 planning-to-PyTorch L2 from the superseded `0.274626 m` to `0.183680 m` (`33.1%`), but does not reproduce NVIDIA's `0.0502 m`; raw FP32 `0.003772 m` also remains above NVIDIA's `9.2417e-07 m`.
+
+### Corrected trained-tiny temporal deployment, full 6018 frames: `use_col_optim=True` protocol
+
+The original UniAD evaluation config sets `use_col_optim=True`. The TensorRT graph emits raw `outs_planning`, so the C++ runner now optionally reconstructs occupied BEV points from `seg_out` and applies occupancy-aware collision trajectory optimization after inference. The following table was rerun with `UNIAD_COLLISION_OPTIMIZATION=1`; each latency JSON records `collision_optimization_enabled=true`.
+
+| Metric | Full Python reference (`use_col_optim`) | Deployment PyTorch raw | TensorRT FP32 optimized | TensorRT FP16 optimized | TensorRT INT8(EQ)+FP16 optimized |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| planning avg. L2 | 0.826428 m | 0.780738 m | 0.818865 m | 0.796663 m | 0.798525 m |
+| planning point collision | 0.013845% | 0.085854% | 0.036003% | 0.038773% | 0.044312% |
+| planning box collision | 0.221521% | 0.667442% | 0.340645% | 0.301872% | 0.324028% |
+| planning output L2 vs deployment PyTorch | n/a | 0 | 0.073259 m | 0.183289 m | 0.238001 m |
+| synchronized forward mean/p50/p99 | n/a | n/a | 20.356/20.275/23.352 ms | 16.287/16.228/17.352 ms | 16.114/15.887/17.708 ms |
+| end-to-end mean/p50/p99 | n/a | n/a | 96.504/95.228/111.030 ms | 92.497/91.109/108.303 ms | 91.482/90.876/103.718 ms |
+
+This resolves the main early collision inflation: raw FP32 box collision `0.667442%` falls to `0.340645%` after the missing post-processing is restored; FP16 and INT8 are `0.301872%` and `0.324028%`, close to NVIDIA's `0.27%`. The remaining difference from the full Python `0.221521%` is attributable to occupancy-boundary representation, the C++ numerical optimizer versus the Python CasADi optimizer, reduced-precision error, and discrete collision-count sensitivity. It is no longer correct to attribute the whole difference to INT8 calibration or unknown GT metadata. The optimized output L2 values `0.073259/0.183289/0.238001 m` compare against the retained raw deployment-PyTorch trajectory, so they are diagnostics, not same-protocol reproductions of NVIDIA planning MSE; that requires a new optimized deployment-PyTorch per-frame reference.
 
 ### CARLA Town03 model-controlled closed-loop diagnostic
 
-The corrected diagnostic uses one dense GlobalRoutePlanner route, six synchronized RGB cameras, route navigation commands, identical preprocessing/controller inputs, no traffic, inference every 10 frames, and a 400-frame blocked threshold. The latency table excludes the first cold inference.
+The retained diagnostic uses one dense GlobalRoutePlanner route, six synchronized RGB cameras, route navigation commands, identical preprocessing/controller inputs, no traffic, inference every 10 frames, and a 400-frame blocked threshold. Its deployment-PyTorch and TensorRT services both pass raw `outs_planning` to the controller, so it predates the occupancy-aware post-process correction above. The latency table excludes the first cold inference.
 
 | Backend | Frames / result | Route progress | Unique collisions / lane invasions | Forward mean / p50 / p99 | Service E2E mean / p50 / p99 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -178,7 +193,9 @@ The corrected diagnostic uses one dense GlobalRoutePlanner route, six synchroniz
 | TensorRT FP16 | 541 / blocked | 2.1066% | 20 / 6 | 17.101 / 15.550 / 31.390 ms | 188.202 / 188.509 / 213.407 ms |
 | TensorRT INT8(EQ)+FP16 | 571 / blocked | 2.3791% | 19 / 6 | 19.504 / 16.299 / 48.116 ms | 199.395 / 193.309 / 254.606 ms |
 
-All variants follow similar initial motion and then stall in repeated contact around 2.1% to 2.4% of the dense route. This is an offline nuScenes-model/controller domain mismatch rather than a reduced-precision-only failure. The reused CARLA tree does not contain the complete official Bench2Drive scenarios/scoring protocol, so these values must not be reported as a driving score.
+All variants follow similar initial motion and then stall in repeated contact around 2.1% to 2.4% of the dense route. This is shared by PyTorch and TensorRT and is not a reduced-precision-only failure. Concrete causes are the missing planning post-process in these old runs, an approximate six-camera CARLA rig (`1600x900`, `90` degree FOV, hard-coded poses) rather than the checkpoint's exact nuScenes calibration/domain, inference held for ten simulator frames, and the custom single-target controller.
+
+The reused V2Xverse asset tree contains a 42-route catalogue with 4829 scenario trigger-event configurations, plus 233 training-split, 105 evaluation, and 66 additional route definitions. This evidence executed only `routes_town03_1.xml` and spawned zero scenario events because the custom runner bypasses Leaderboard/ScenarioRunner. It can report progress, collision groups, lane invasions, blocked reason, speed, and latency, but not a valid official route completion or Driving Score until the model is wrapped as a leaderboard agent and run through that evaluator.
 
 ## Official-patch and base-port audit
 
@@ -203,10 +220,22 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 
 1. Trace the FP32 planning delta against PyTorch before attributing accuracy loss to reduced precision; prioritize export rewrites, plugin parity, temporal-state decoding, and result reconstruction.
 2. Expand the ONNX output contract and add TensorRT result-bundle reconstruction if full detection/tracking/map/occupancy scores are required from the engine path; the NVIDIA tutorial graph cannot emit all of them.
-3. Trace the deployment-reference collision mismatch against the 6019-frame Python baseline before comparing box collision with NVIDIA's table.
+3. If exact collision parity is required, align the C++ optimizer numerics and occupancy-boundary convention with the Python CasADi implementation; the missing raw-trajectory post-process has now been restored and separately measured.
 4. Replace the in-memory monolithic calibration collector with a bounded-memory streaming or sharded protocol before expanding UniAD-base calibration; one 8-sample NPZ is already about 1.2 GiB.
-5. Install the complete official Bench2Drive/CARLA scenario assets before requesting a formal closed-loop driving score; retain the current Town03 result only as a custom diagnostic.
+5. Add the restored planning post-process to both UniAD CARLA services, wrap the model as a Leaderboard/ScenarioRunner agent, and validate the existing route/scenario catalogues before requesting a formal driving score; retain the current Town03 result only as a custom diagnostic.
 6. Update this document and push one commit after each completed major round.
+
+---
+
+## Iteration 010 - 2026-08-12T17:32:08-07:00
+
+- Verified the trained tiny deployment checkpoint by SHA-256: epoch-20 tiny is `88289ecdf2a7576a4c6bd1c0879d15ffba5b93fc22221872fef6196638d91484`; the separate base checkpoint is `0ad0c2f5...` and was not used by the tiny engine.
+- Audited the C++ runner's latency JSON and found all earlier tiny full-validation rows had `collision_optimization_enabled=false`; they were raw trajectory statistics, unlike the Python config's `use_col_optim=True` path.
+- Rebuilt no engine and changed no weights. Reran FP32, FP16, and validation315 INT8 on all 6018 frames with `UNIAD_COLLISION_OPTIMIZATION=1`, restoring occupancy-aware collision post-processing after raw TensorRT output.
+- Corrected optimized box collision is `0.340645% / 0.301872% / 0.324028%` for FP32/FP16/INT8, versus raw `0.667442% / 0.631439% / 0.800377%`; optimized values are close to NVIDIA's `0.27%` and expose the remaining optimizer/occupancy-boundary/statistical differences.
+- Added `collision_optimized_summary.json` and split the report into raw and optimized protocol tables. All three optimized runs completed 6018/6018 finite frames.
+- Made the exact-TensorRT-10.7 evaluation entry point default to the optimized protocol, while retaining `UNIAD_COLLISION_OPTIMIZATION=0` as an explicit raw diagnostic override.
+- Audited CARLA assets and corrected the earlier overstatement: route/scenario files exist, but the retained custom run uses one route, zero scenario events, raw planning, and no official scorer.
 
 ---
 

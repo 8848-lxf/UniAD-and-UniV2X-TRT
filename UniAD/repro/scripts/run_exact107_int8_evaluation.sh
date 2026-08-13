@@ -39,6 +39,10 @@ if [[ -e "${OUTPUT_PATH}" ]]; then
 fi
 mkdir -p "${OUTPUT_PATH}"
 export CUDA_VISIBLE_DEVICES="${UNIAD_GPU}"
+# The original UniAD evaluation config uses use_col_optim=True. Keep the
+# deployment evaluator on that protocol by default; set this to 0 explicitly
+# only when collecting a raw outs_planning diagnostic.
+export UNIAD_COLLISION_OPTIMIZATION="${UNIAD_COLLISION_OPTIMIZATION:-1}"
 
 cd "${REPRO_ROOT}/UniAD_deploy"
 "${APP_PATH}" \

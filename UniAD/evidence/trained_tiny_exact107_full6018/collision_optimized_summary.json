@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "model": "trained UniAD-tiny epoch 20",
+  "checkpoint_sha256": "88289ecdf2a7576a4c6bd1c0879d15ffba5b93fc22221872fef6196638d91484",
+  "frames": 6018,
+  "postprocess": "UNIAD_COLLISION_OPTIMIZATION=1",
+  "postprocess_definition": "Occupied BEV points are reconstructed from seg_out and used by the occupancy-aware collision trajectory optimizer.",
+  "planning_output_comparison_caveat": "The retained deployment-PyTorch reference is raw outs_planning, so optimized TensorRT planning_output_mean_point_l2_m is diagnostic and not the same-protocol NVIDIA planning MSE.",
+  "source_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/collision_optimized_full6018_20260812",
+  "results": {
+    "pytorch_full_python_reference": {
+      "planning_avg_l2_m": 0.826428,
+      "planning_point_collision_percent": 0.013845,
+      "planning_box_collision_percent": 0.221521
+    },
+    "pytorch_deployment_raw_reference": {
+      "planning_avg_l2_m": 0.7807382961960799,
+      "planning_point_collision_percent": 0.08585355045973192,
+      "planning_box_collision_percent": 0.667442118090174
+    },
+    "tensorrt_fp32_optimized": {
+      "planning_avg_l2_m": 0.8188647124609817,
+      "planning_point_collision_percent": 0.03600310180569403,
+      "planning_box_collision_percent": 0.3406447324692589,
+      "planning_output_mean_point_l2_m": 0.07325852662324905,
+      "forward_mean_p50_p99_ms": [20.355714, 20.275375, 23.351644],
+      "end_to_end_mean_p50_p99_ms": [96.504188, 95.228392, 111.029509]
+    },
+    "tensorrt_fp16_optimized": {
+      "planning_avg_l2_m": 0.7966627962282594,
+      "planning_point_collision_percent": 0.038772571175362806,
+      "planning_box_collision_percent": 0.3018721612938961,
+      "planning_output_mean_point_l2_m": 0.18328852951526642,
+      "forward_mean_p50_p99_ms": [16.287143, 16.227709, 17.352025],
+      "end_to_end_mean_p50_p99_ms": [92.497138, 91.109183, 108.302738]
+    },
+    "tensorrt_int8_eq_fp16_optimized": {
+      "planning_avg_l2_m": 0.7985253491736158,
+      "planning_point_collision_percent": 0.04431150991470034,
+      "planning_box_collision_percent": 0.3240279162512463,
+      "planning_output_mean_point_l2_m": 0.23800146579742432,
+      "forward_mean_p50_p99_ms": [16.114406, 15.887204, 17.708056],
+      "end_to_end_mean_p50_p99_ms": [91.482219, 90.876413, 103.718124]
+    }
+  }
+}

@@ -44,6 +44,38 @@
       "end_to_end_mean_p50_p99_ms": [92.788026, 91.679927, 109.152366]
     }
   },
+  "tensorrt_collision_optimized": {
+    "evaluation_contract": "6018 frames with UNIAD_COLLISION_OPTIMIZATION=1; C++ post-process reconstructs occupied BEV points from seg_out and applies occupancy-aware collision trajectory optimization after TensorRT raw output",
+    "fp32": {
+      "planning_avg_l2_m": 0.8188647124609817,
+      "planning_point_collision_percent": 0.03600310180569403,
+      "planning_box_collision_percent": 0.3406447324692589,
+      "planning_output_mean_point_l2_m": 0.07325852662324905,
+      "enqueue_mean_p50_p99_ms": [16.785444, 16.730064, 18.917376],
+      "forward_mean_p50_p99_ms": [20.355714, 20.275375, 23.351644],
+      "end_to_end_mean_p50_p99_ms": [96.504188, 95.228392, 111.029509]
+    },
+    "fp16": {
+      "planning_avg_l2_m": 0.7966627962282594,
+      "planning_point_collision_percent": 0.038772571175362806,
+      "planning_box_collision_percent": 0.3018721612938961,
+      "planning_output_mean_point_l2_m": 0.18328852951526642,
+      "enqueue_mean_p50_p99_ms": [12.462135, 12.420512, 13.275771],
+      "forward_mean_p50_p99_ms": [16.287143, 16.227709, 17.352025],
+      "end_to_end_mean_p50_p99_ms": [92.497138, 91.109183, 108.302738]
+    },
+    "int8_eq_fp16": {
+      "planning_avg_l2_m": 0.7985253491736158,
+      "planning_point_collision_percent": 0.04431150991470034,
+      "planning_box_collision_percent": 0.3240279162512463,
+      "planning_output_mean_point_l2_m": 0.23800146579742432,
+      "enqueue_mean_p50_p99_ms": [12.052386, 11.877296, 13.523948],
+      "forward_mean_p50_p99_ms": [16.114406, 15.887204, 17.708056],
+      "end_to_end_mean_p50_p99_ms": [91.482219, 90.876413, 103.718124]
+    },
+    "raw_vs_optimized_interpretation": "The earlier TensorRT table used raw outs_planning because collision_optimization_enabled was false. The optimized table restores the post-process used by UniAD use_col_optim=True; remaining differences are occupancy-boundary representation, optimizer numerical implementation, quantization error, and discrete collision counting rather than the previously missing post-processing.",
+    "planning_output_comparison_caveat": "The optimized planning_output_mean_point_l2_m values compare optimized TensorRT trajectories with the retained raw deployment-PyTorch trajectory. They are diagnostic and are not an apples-to-apples reproduction of NVIDIA planning MSE; that comparison requires an optimized deployment-PyTorch per-frame reference."
+  },
   "planning_output_comparison_definition": "The NVIDIA table's planning MSE column is documented as mean Euclidean L2 distance in meters between corresponding TensorRT and PyTorch trajectory points. Coordinate MSE in square meters is reported separately and is not interchangeable with that legacy column.",
   "latency_trend": "FP32 > FP16 > INT8(EQ)+FP16 for enqueue and synchronized inference call",
   "full_task_metric_limitation": "The NVIDIA tutorial C++ graph/runner emits planning, temporal state, segmentation logits, and decoded boxes but does not reconstruct the complete Python detection/tracking/map/occupancy result bundle. Engine mAP, AMOTA, map IoU, and occupancy IoU are therefore unavailable rather than zero.",

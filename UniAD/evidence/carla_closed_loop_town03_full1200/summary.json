@@ -51,6 +51,16 @@
     }
   },
   "latency_definition": "Steady state excludes the first model inference. Service end-to-end includes request NPZ loading, image preprocessing, recurrent-state update, output transfer, and JSON response.",
-  "driving_result_interpretation": "PyTorch and all three TensorRT precisions follow similar initial motion and stall in repeated contact at about 2.1 to 2.4 percent dense-route progress. This indicates that the offline nuScenes model/controller is not adapted to the custom CARLA route rather than a reduced-precision-only failure. The available reused CARLA tree lacks complete official Bench2Drive scenarios and scoring assets, so route progress, unique collision groups, lane invasions, and latency are diagnostic metrics only.",
+  "trajectory_protocol": "Both the deployment-PyTorch and TensorRT CARLA services consumed raw outs_planning; these retained runs predate the occupancy-aware collision post-process fix.",
+  "available_route_asset_inventory": {
+    "v2xverse_42routes": 42,
+    "v2xverse_42scenarios_trigger_events": 4829,
+    "training_split_routes": 233,
+    "evaluation_routes": 105,
+    "additional_routes": 66,
+    "routes_executed_by_this_evidence": 1,
+    "scenario_events_spawned_by_this_evidence": 0
+  },
+  "driving_result_interpretation": "PyTorch and all three TensorRT precisions follow similar initial motion and stall in repeated contact at about 2.1 to 2.4 percent dense-route progress. The shared failure reflects the raw-trajectory protocol, the offline nuScenes-to-CARLA sensor/domain mismatch, and the custom controller rather than a reduced-precision-only failure. Route and scenario catalogues exist in the reused V2Xverse tree, but this custom runner bypasses Leaderboard/ScenarioRunner and its scoring protocol; route progress, unique collision groups, lane invasions, and latency are diagnostic metrics only.",
   "raw_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/carla_closed_loop_corrected_20260812"
 }
