@@ -261,6 +261,17 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 
 ---
 
+## 2026-08-14T11:22:12-07:00 (PDT) - FP16 full-run promotion and threshold audit
+
+- Promoted the best 200-frame mixed candidate to a 6018-frame fail-closed evaluation. The engine keeps LayerNorm plus recurrent BEV/float-track output lineages in FP32 and uses FP16 elsewhere. It completed all frames with finite output, but occupancy IoU was only `71.697673%`; optimized avg. L2/box Col was `0.842812 m / 0.462501%`. Model enqueue mean/p50/p99 was `15.791/15.789/17.703 ms`, slower than plain FP16. It is rejected.
+- The same candidate reduced raw trajectory squared-point planning MSE against matching PyTorch from plain FP16 `0.061875` to `0.006976`, and mean point L2 from `0.032670` to `0.015541 m`. This verifies that recurrent/LayerNorm protection improves trajectory numerics, but it does not repair the separate occupancy consumer error.
+- Added `UniAD/repro/scripts/sweep_fp16_occupancy_thresholds.py`. It validates score/raw temporal manifests, memory-maps the continuous score output, reuses the deployment-matching independent-point BFGS optimizer, and reports full GT L2/point/box-collision results for each threshold. A 200-frame `0.1` regression reproduced the C++ optimized metrics exactly.
+- Repeated the 6018-frame score dump with the unmodified standard plugin (`SHA256 14ea7801...`) before the final threshold sweep. Default `0.1` gives `0.837544 m / 0.459732%`; validation-GT-selected `0.55` gives `0.745060 m / 0.354492%`. It improves this validation result but still misses FP32 `0.252022%` collision accuracy.
+- Threshold `0.55` is diagnostic only. It was selected on validation GT, changes the trained/exported `score > 0.1` contract, and conflicts with the PyTorch occupancy-parity optimum near `0.099`; it is therefore not promoted into runtime or reported as a repaired model.
+- Final acceptance is unchanged: plain FP16 and the tested mixed candidates are not accepted for collision-optimized deployment. FP32 remains the accuracy reference; the explicit-QDQ INT8 graph with terminal occupancy protection remains the reduced-precision result, with its residual occupancy-parity limitation stated.
+
+---
+
 ## Iteration 014 - 2026-08-13T08:19:03-07:00
 
 - Added an auditable `official_literal` calibration mode matching NVIDIA's script semantics: only global `sample_id == 0` initializes external recurrent state; scene changes carry the previous external track/BEV/timestamp/pose outputs and signal the model-internal reset with `use_prev_bev=0`. The existing per-scene reset remains the default for compatibility.

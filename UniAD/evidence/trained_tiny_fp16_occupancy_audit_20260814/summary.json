@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "timestamp_pdt": "2026-08-14T08:43:36-07:00",
+  "last_updated_pdt": "2026-08-14T11:22:12-07:00",
   "model": "UniAD-tiny stage-2 epoch-20 trained checkpoint",
   "frames": 6018,
   "scenes": 150,
@@ -28,6 +29,24 @@
       "optimized_avg_box_collision_percent": 0.46250138473468483,
       "model_enqueue_p50_ms": 12.148512,
       "accepted": false
+    },
+    "fp16_state_and_layernorm_fp32": {
+      "artifact_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt109_20260814/full6018/fp16_state_occ_planning_fp32",
+      "engine_sha256": "99ae7527a978509cbdde3d156d323feb96db6b510f0f2ec3cadeb277518fd841",
+      "occupancy_iou_percent": 71.69767322692257,
+      "occupancy_precision_percent": 84.65857150060177,
+      "occupancy_recall_percent": 82.40421888023161,
+      "raw_avg_l2_m": 0.7355218899710824,
+      "raw_avg_box_collision_percent": 0.5538938739337543,
+      "optimized_avg_l2_m": 0.8428118030157606,
+      "optimized_avg_box_collision_percent": 0.46250138473468483,
+      "planning_mse_mean_squared_point_distance_m2": 0.006976335309445858,
+      "planning_mean_point_l2_vs_pytorch_m": 0.01554067526012659,
+      "model_enqueue_mean_p50_p99_ms": [15.790998, 15.788928, 17.70279],
+      "inference_mean_p50_p99_ms": [19.698334, 19.696495, 21.971577],
+      "end_to_end_mean_p50_p99_ms": [71.11694, 70.515133, 79.879023],
+      "accepted": false,
+      "rejection_reason": "Planning parity improved, but occupancy and optimized L2/collision did not improve and latency regressed."
     }
   },
   "scene_position_iou_percent": {
@@ -94,7 +113,17 @@
     "baseline_iou_percent": 91.59803018085474,
     "best_global_threshold": 0.09899902343749999,
     "best_global_iou_percent": 91.61127895266868,
-    "threshold_bias_is_root_cause": false
+    "threshold_bias_is_root_cause": false,
+    "full_validation_standard_plugin": {
+      "default_threshold": 0.1,
+      "default_avg_l2_m": 0.8375436118069052,
+      "default_avg_box_collision_percent": 0.45973191536501606,
+      "best_validation_gt_threshold": 0.55,
+      "best_validation_gt_avg_l2_m": 0.745060454070591,
+      "best_validation_gt_avg_box_collision_percent": 0.35449207931760274,
+      "accepted_as_model_fix": false,
+      "rejection_reason": "The 0.55 threshold was selected against validation GT, changes the trained score > 0.1 contract, and still does not reach FP32 collision accuracy."
+    }
   },
   "spatial_filter_audit_iou_percent": {
     "raw": 91.59803018085474,
