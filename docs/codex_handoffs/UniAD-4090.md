@@ -25,7 +25,7 @@ Status is fail-closed: a smoke test is not counted as full validation, and the o
 | Trained UniAD-tiny stage 1/2 | Completed | Stage 1 epoch 6 and stage 2 epoch 20 follow `documents/train_export.md`; both training and deployment `ckpts` entries resolve to one registry. |
 | Trained UniAD-tiny PyTorch full validation | Completed | 6019 frames; detection, tracking, map, occupancy, planning, and latency are recorded below. |
 | Trained UniAD-tiny ONNX/calibration/engines | Completed on TensorRT 10.9 | The accepted INT8 graph uses 168 independent official-literal recurrent feeds and protects only two occupancy-terminal activation Q/DQ paths with FP16. The 315-feed graph is retained as a calibration-semantics control. |
-| Trained UniAD-tiny temporal TensorRT evaluation | Completed for TensorRT 10.9 FP32/FP16/accepted INT8 | All three precisions completed 6018 finite frames with official external-state carry semantics, fixed 1600 capacity, raw/optimized planning metrics, collision-trigger audits, and mean/p50/p99 latency. |
+| Trained UniAD-tiny temporal TensorRT evaluation | Completed for TensorRT 10.9 FP32/FP16/accepted INT8 | All three precisions completed 6018 frames with official external-state carry semantics, historical fixed-1600 capacity, raw/optimized planning metrics, collision-trigger audits, and mean/p50/p99 latency. A later profile audit found max track count 1138 and mandates official fixed-1150 capacity for future formal rebuilds. |
 | UniAD-base config and checkpoint adaptation | Completed | Uses the base graph, base input metadata, and dynamic temporal-track profile; the checkpoint is not inserted into the tiny graph. |
 | Base FP32 ONNX export | Completed | Local artifact excluded from Git. |
 | Base explicit-QDQ INT8 graph | Completed | ONNX check passes with expected TRT plugin-domain handling; MatMul weights/activations are excluded from INT8. |
@@ -348,6 +348,18 @@ For the official `trtexec --iterations=100` timing boundary at track shape 901, 
 Acceptance is partial. Runtime, finite outputs, TensorRT 10.9 isolation, official calibration temporal semantics, occupancy validity, and collision post-processing pass. Optimized avg. L2 and collision are close in range to NVIDIA's example. Exact official planning-difference parity remains unresolved because the public metric reduction is ambiguous and the full recursive application still differs materially from the optimized Python trajectory.
 
 Evidence: `UniAD/evidence/trained_tiny_trt109_full6018/summary.json`. Large ONNX, engine, timing-cache, prediction, and log artifacts remain excluded under `/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt109_20260813`.
+
+---
+
+## Iteration 016 - 2026-08-14T12:01:23-07:00
+
+- Corrected the profile description. NVIDIA uses `MIN/OPT/MAX=901/901/1150`; the later 1600 setting was a conservative fixed-shape diagnostic bound, not an official requirement. Across the 6018 official-literal PyTorch audit frames, track count is `min=901`, `max=1138`, and `mean=926.580924`; no frame exceeds 1150. The controlled 1150/1600 200-frame run was byte-exact, so padding is not the FP16 occupancy defect. Historical 1600 results retain their label, while version-controlled build/evaluation defaults and future formal runs use 1150.
+- Audited all `75,225,000` standard-plugin FP16 continuous occupancy scores before `Greater(..., 0.1)`. FP16 has 706,802 false-positive and 841,915 false-negative cells relative to matching PyTorch masks. False-positive score median is `0.229126`; finite false-negative median is `0.004032`. Only `0.2243%` of all scores lie within `0.1 +/- 0.01`, confirming that the defect is not threshold-near FP16 rounding.
+- Found 31,700 NaN scores in only frames 1948, 1953, and 4825. They cover 2,854 PyTorch-positive cells and account for `0.338989%` of all false negatives. This is retained as a real FP16 numerical defect, but it cannot explain the aggregate occupancy/Col regression.
+- Completed the mixed-precision path bisection. On the same 200-frame gate, FP16 control IoU is `91.598030%`; plugin FP32 accumulation `91.606901%`; MSDA FP32 `91.458717%`; final Conv FP32 `90.484706%`; occupancy decoder Conv depth 2/4/8 `90.538580/90.445100/91.345556%`; recurrent-state FP32 `92.008031%`; and recurrent state plus occupancy/planning-exclusive FP32 `92.017620%`. No terminal layer, plugin, threshold, or recurrent-state boundary restores FP32 occupancy parity.
+- The remaining error boundary is the combined per-frame shared image/BEV feature producer and occupancy consumer propagation. Expanding a single-engine FP32 lineage further approaches FP32 compute scope without restoring the mask, so plain FP16 remains rejected for collision-optimized deployment. TensorRT FP32 is the accuracy reference; accepted explicit INT8 QDQ with terminal occupancy FP16 protection remains the reduced-precision path, with its residual occupancy-parity limitation documented.
+
+Detailed PDT timeline: `/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/docs/4090-UniAD-tiny.md`. Large score dumps, engines, reports, and timing caches remain excluded under `/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt109_20260814`.
 
 ---
 
