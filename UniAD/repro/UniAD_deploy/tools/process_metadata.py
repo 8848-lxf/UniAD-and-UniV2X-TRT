@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import argparse
+import json
 import os
 import numpy as np
 import importlib
@@ -35,20 +36,32 @@ def scene_token_preprocess(scene_token):
         scene_token_list.append(ord(ch))
     return torch.tensor(scene_token_list)
 
-def process_metadata(data_loader, data_root, folder, trt_path, onnx_path, gt_path, stop_id):
+def process_metadata(
+        data_loader, data_root, folder, trt_path, onnx_path, gt_path, stop_id,
+        temporal_protocol):
     assert stop_id>5
     dump_info_str_lst = []
     timestamp_origin = None
     prev_pos = 0
     prev_angle = 0
+    previous_scene_token = None
+    scene_start_frames = []
     for sample_id, data in tqdm.tqdm(enumerate(data_loader)):
         if sample_id >= stop_id:
             break
         img_metas = data["img_metas"][0].data
         timestamp = data["timestamp"][0] if data["timestamp"] is not None else None
         scene_token = img_metas[0][0]["scene_token"]
+        new_scene = scene_token != previous_scene_token
+        if new_scene:
+            scene_start_frames.append(sample_id)
+            if temporal_protocol == "scene_reset":
+                timestamp_origin = None
+                prev_pos = 0
+                prev_angle = 0
         if timestamp_origin is None:
             timestamp_origin = timestamp[0].cpu().numpy()
+        previous_scene_token = scene_token
         trt_inputs = dict()
         trt_inputs["img_metas_lidar2img"] = np.float32(np.stack(img_metas[0][0]["lidar2img"])[None,...])
         trt_inputs["img_metas_scene_token"] = np.float32(scene_token_preprocess(img_metas[0][0]["scene_token"]).cpu().numpy())
@@ -118,6 +131,31 @@ def process_metadata(data_loader, data_root, folder, trt_path, onnx_path, gt_pat
     info_file = open(os.path.join(trt_path, "info.txt"), "w")
     info_file.writelines(dump_info_str_lst)
     info_file.close()
+    with open(os.path.join(trt_path, "metadata_manifest.json"), "w") as manifest_file:
+        json.dump({
+            "schema_version": 1,
+            "temporal_protocol": temporal_protocol,
+            "frames": len(dump_info_str_lst),
+            "scene_count": len(scene_start_frames),
+            "scene_start_frames": scene_start_frames,
+            "use_prev_bev_on_scene_start": 0,
+            "external_state_policy": (
+                "initialize once at global sample 0 and carry across scenes"
+                if temporal_protocol == "official_literal" else
+                "initialize at every scene boundary"
+            ),
+            "timestamp_origin_policy": (
+                "global validation-sequence origin"
+                if temporal_protocol == "official_literal" else
+                "per-scene origin"
+            ),
+            "ego_pose_delta_policy": (
+                "continuous across scene boundaries"
+                if temporal_protocol == "official_literal" else
+                "reset previous pose to zero at every scene boundary"
+            ),
+        }, manifest_file, indent=2, sort_keys=True)
+        manifest_file.write("\n")
     return
     
 def parse_args():
@@ -128,6 +166,16 @@ def parse_args():
     parser.add_argument("--dump_onnx_path", type=str, default='./nuscenes_np/uniad_onnx_input' ,help="input meta dump path")
     parser.add_argument("--dump_gt_path", type=str, default='./nuscenes_np/planning_ground_truth', help="planning ground-truth dump path")
     parser.add_argument("--num_frame", type=int, default=69, help="total number of frames to process")
+    parser.add_argument(
+        "--temporal-protocol",
+        choices=("official_literal", "scene_reset"),
+        default="official_literal",
+        help=(
+            "official_literal preserves NVIDIA's global external-state stream; "
+            "scene_reset reinitializes external state and metadata deltas per scene"))
+    parser.add_argument(
+        "--workers-per-gpu", type=int, default=8,
+        help="DataLoader worker count; ordering remains deterministic")
     args = parser.parse_args()
     return args
 
@@ -151,9 +199,12 @@ if __name__ == '__main__':
     data_loader = build_dataloader(
         dataset,
         samples_per_gpu=1,
-        workers_per_gpu=cfg.data.workers_per_gpu,
+        workers_per_gpu=args.workers_per_gpu,
         dist=False,
         shuffle=False,
         nonshuffler_sampler=cfg.data.nonshuffler_sampler,
     )
-    process_metadata(data_loader, cfg.data_root, args.dump_folder, args.dump_trt_path, args.dump_onnx_path, args.dump_gt_path, args.num_frame)
+    process_metadata(
+        data_loader, cfg.data_root, args.dump_folder, args.dump_trt_path,
+        args.dump_onnx_path, args.dump_gt_path, args.num_frame,
+        args.temporal_protocol)

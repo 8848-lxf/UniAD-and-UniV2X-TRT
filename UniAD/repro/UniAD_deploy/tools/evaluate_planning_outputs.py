@@ -22,9 +22,31 @@ def parse_args():
     parser.add_argument("--ground-truth", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--reference-predictions", type=Path)
+    parser.add_argument(
+        "--max-frames", type=int, default=0,
+        help="evaluate only the first N contiguous prediction frames; 0 uses all")
+    parser.add_argument(
+        "--prediction-protocol",
+        choices=("official_literal", "scene_reset"),
+        help="temporal protocol used to produce --predictions")
+    parser.add_argument(
+        "--reference-protocol",
+        choices=("official_literal", "scene_reset"),
+        help="temporal protocol used to produce --reference-predictions")
     parser.add_argument("--x-bound", nargs=3, type=float, default=(-12.5, 12.5, 0.5))
     parser.add_argument("--y-bound", nargs=3, type=float, default=(-12.5, 12.5, 0.5))
     return parser.parse_args()
+
+
+def load_declared_protocol(path, explicit):
+    if explicit:
+        return explicit
+    manifest_path = Path(str(path) + ".manifest.json")
+    if not manifest_path.is_file():
+        return None
+    with manifest_path.open() as handle:
+        manifest = json.load(handle)
+    return manifest.get("temporal_protocol")
 
 
 def load_predictions(path):
@@ -125,9 +147,22 @@ def load_ground_truth(root, frame):
 
 def main():
     args = parse_args()
+    prediction_protocol = load_declared_protocol(
+        args.predictions, args.prediction_protocol)
+    reference_protocol = None
+    if args.reference_predictions:
+        reference_protocol = load_declared_protocol(
+            args.reference_predictions, args.reference_protocol)
+        if (prediction_protocol is not None and reference_protocol is not None
+                and prediction_protocol != reference_protocol):
+            raise ValueError(
+                "Temporal protocol mismatch: predictions use "
+                f"{prediction_protocol}, reference uses {reference_protocol}")
     dx, bx, bev_dimension = build_grid(args.x_bound, args.y_bound)
     ego_footprint = ego_footprint_pixels(dx, bx)
     predictions = load_predictions(args.predictions)
+    if args.max_frames > 0:
+        predictions = predictions[:args.max_frames]
     frame_count = predictions.shape[0]
     l2_sum = np.zeros(N_FUTURE, dtype=np.float64)
     point_collision_sum = np.zeros(N_FUTURE, dtype=np.float64)
@@ -151,9 +186,10 @@ def main():
     point_collision_percent = point_collision_sum / frame_count * 100.0
     box_collision_percent = box_collision_sum / frame_count * 100.0
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "frames": frame_count,
         "metric_source": "UniAD PlanningMetric",
+        "prediction_temporal_protocol": prediction_protocol,
         "x_bound": list(args.x_bound),
         "y_bound": list(args.y_bound),
         "bev_dimension": bev_dimension.tolist(),
@@ -175,24 +211,31 @@ def main():
         delta = predictions - reference
         mean_point_l2 = float(np.linalg.norm(delta, axis=-1).mean())
         coordinate_mse = float(np.square(delta).mean())
+        mean_squared_point_distance = 2.0 * coordinate_mse
         result["planning_reference_frames"] = frame_count
+        result["reference_temporal_protocol"] = reference_protocol
         result["planning_output_mean_point_l2_m"] = mean_point_l2
         result["planning_output_coordinate_mse_m2"] = coordinate_mse
-        result["planning_output_mean_squared_point_l2_m2"] = 2.0 * coordinate_mse
+        result["planning_output_mean_squared_point_l2_m2"] = mean_squared_point_distance
         # Keep the legacy key while reporting all plausible interpretations.
         # NVIDIA's prose says average point L2, while its metric name and FP32
         # magnitude resemble a squared error; the public tutorial has no metric
         # implementation that resolves this contradiction.
         result["planning_reference_avg_l2_m"] = mean_point_l2
         result["planning_reference_coordinate_mse"] = coordinate_mse
-        result["planning_mse"] = mean_point_l2
+        result["planning_mse"] = mean_squared_point_distance
+        result["planning_mse_selected_mean_squared_point_distance_m2"] = (
+            mean_squared_point_distance)
+        result["planning_mse_nvidia_documented_average_point_l2_m"] = mean_point_l2
         result["planning_mse_documented_mean_point_l2_m"] = mean_point_l2
         result["planning_mse_literal_coordinate_mse_m2"] = coordinate_mse
-        result["planning_mse_literal_mean_squared_point_l2_m2"] = 2.0 * coordinate_mse
+        result["planning_mse_literal_mean_squared_point_l2_m2"] = (
+            mean_squared_point_distance)
         result["planning_mse_definition"] = (
-            "Ambiguous public NVIDIA naming: prose says mean Euclidean point L2, "
-            "but the name and FP32 magnitude resemble squared error; all three "
-            "candidate statistics are reported explicitly"
+            "planning_mse is mean(dx^2 + dy^2). NVIDIA's prose describes an "
+            "average pointwise Euclidean L2, which is retained in the documented "
+            "L2 fields; the public FP32 table magnitude matches squared point "
+            "distance, so both interpretations are reported explicitly"
         )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

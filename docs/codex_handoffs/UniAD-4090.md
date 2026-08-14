@@ -236,6 +236,16 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 5. Wrap the post-processed backend as a Leaderboard/ScenarioRunner agent and validate the existing route/scenario catalogues before requesting a formal driving score; retain the current Town03 result only as a custom diagnostic.
 6. Update this document and push one commit after each completed major round.
 
+## 2026-08-13T21:47:23-07:00 (PDT) - CV-JPEG and full official-literal parity round
+
+- Replaced the runtime STB JPEG decode path with Conda libjpeg-turbo and verified the first six camera tensors against PyTorch: max normalized delta `2.3841858e-7`.
+- Added explicit `official_literal` / `scene_reset` protocol manifests, recurrent PyTorch audit output, occupancy packbits comparison, and three-way planning statistics.
+- Re-ran 6018 frames with TensorRT 10.9 FP32/FP16/accepted INT8 and a matching 6018-frame PyTorch reference. FP32/FP16/INT8 optimized box Col is `0.252022% / 0.459732% / 0.263100%`; raw-vs-PyTorch squared-point planning MSE is `6.432e-7 / 0.061875 / 0.080659`.
+- Confirmed the previous all-zero INT8 occupancy branch was caused by two terminal activation Q/DQ scale paths feeding a threshold, not by two Mul operators. The accepted graph protects those activation edges with FP16; all three engines now modify trajectories on nonzero occupancy frames.
+- Changed `evaluate_planning_outputs.py` schema 2 so the primary `planning_mse` is explicitly `mean(dx^2+dy^2)` while mean point L2 and coordinate MSE remain separately named.
+- Fixed runtime/build scripts that referenced a missing `repro/package/uniad-trt` tree. CMake now builds the checked-in runtime with explicit Conda dependency roots and the runner starts from `UniAD/repro/UniAD_deploy` so relative `data/...` image paths resolve.
+- Compact result evidence is stored in `UniAD/evidence/trained_tiny_cvjpeg_official_literal_full6018/summary.json`; large engines, ONNX files, checkpoints, and datasets remain outside Git.
+
 ---
 
 ## Iteration 014 - 2026-08-13T08:19:03-07:00

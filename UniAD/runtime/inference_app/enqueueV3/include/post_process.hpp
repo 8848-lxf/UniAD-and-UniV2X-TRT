@@ -50,6 +50,10 @@ struct CollisionOptimizationAudit {
     std::uint64_t frames_modified = 0;
     std::uint64_t points_modified = 0;
     double max_point_delta_m = 0.0;
+    std::uint64_t last_positive_occupancy_cells = 0;
+    std::uint64_t last_candidate_points = 0;
+    std::uint64_t last_points_modified = 0;
+    double last_max_point_delta_m = 0.0;
 };
 
 CollisionOptimizationAudit& collision_optimization_audit() {
@@ -215,6 +219,10 @@ std::vector<std::pair<float, float>> optimize_planning_trajectory_casadi(
 std::vector<std::pair<float, float>> decode_planning_traj(const UniAD::KernelOutput& output_instance) {
     auto& audit = collision_optimization_audit();
     ++audit.decode_calls;
+    audit.last_positive_occupancy_cells = 0;
+    audit.last_candidate_points = 0;
+    audit.last_points_modified = 0;
+    audit.last_max_point_delta_m = 0.0;
     std::vector<std::pair<float, float>> planning_traj;
     for (size_t i=0; i<output_instance.outs_planning.size(); i+=2) {
         planning_traj.push_back({output_instance.outs_planning[i], output_instance.outs_planning[i+1]});
@@ -235,6 +243,7 @@ std::vector<std::pair<float, float>> decode_planning_traj(const UniAD::KernelOut
         if (value != 0) ++positive_cells;
     }
     audit.positive_occupancy_cells += positive_cells;
+    audit.last_positive_occupancy_cells = positive_cells;
     if (positive_cells > 0) ++audit.frames_with_positive_occupancy;
     std::vector<std::vector<std::array<double, 2>>> occupied_by_timestep(
         planning_traj.size());
@@ -266,6 +275,7 @@ std::vector<std::pair<float, float>> decode_planning_traj(const UniAD::KernelOut
 #endif
     }
     audit.candidate_points += total_occupied;
+    audit.last_candidate_points = total_occupied;
     if (total_occupied > 0) ++audit.frames_with_candidates;
 #ifdef UNIAD_USE_CASADI_COLLISION_OPTIMIZER
     if (total_occupied > 0) {
@@ -274,6 +284,8 @@ std::vector<std::pair<float, float>> decode_planning_traj(const UniAD::KernelOut
     }
 #endif
     bool frame_modified = false;
+    std::size_t frame_points_modified = 0;
+    double frame_max_point_delta_m = 0.0;
     for (std::size_t index = 0; index < planning_traj.size(); ++index) {
         const double dx = static_cast<double>(planning_traj[index].first)
             - raw_planning_traj[index].first;
@@ -281,11 +293,15 @@ std::vector<std::pair<float, float>> decode_planning_traj(const UniAD::KernelOut
             - raw_planning_traj[index].second;
         const double delta = std::hypot(dx, dy);
         audit.max_point_delta_m = std::max(audit.max_point_delta_m, delta);
+        frame_max_point_delta_m = std::max(frame_max_point_delta_m, delta);
         if (delta > 1.0e-7) {
             frame_modified = true;
             ++audit.points_modified;
+            ++frame_points_modified;
         }
     }
+    audit.last_points_modified = frame_points_modified;
+    audit.last_max_point_delta_m = frame_max_point_delta_m;
     if (frame_modified) ++audit.frames_modified;
     return planning_traj;
 }

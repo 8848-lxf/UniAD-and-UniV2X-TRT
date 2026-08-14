@@ -9,7 +9,8 @@ ARTIFACT_ROOT=${ARTIFACT_ROOT:-${REPRO_ROOT}/artifacts}
 UNIAD_GPU=${UNIAD_GPU:-0}
 ITERATIONS=${ITERATIONS:-100}
 ENGINE_SET=${ENGINE_SET:-fp32,fp16,int8_eq_fp16}
-PLUGIN_PATH="${REPRO_ROOT}/package/uniad-trt/inference_app/enqueueV3/build/libuniad_plugin.so"
+APP_ROOT=${UNIAD_APP_ROOT:-${REPRO_ROOT}/../runtime/inference_app/enqueueV3}
+PLUGIN_PATH="${APP_ROOT}/build/libuniad_plugin.so"
 OUTPUT_DIR="${ARTIFACT_ROOT}/evaluation/trtexec"
 SHAPES='prev_track_intances0:901x512,prev_track_intances1:901x3,prev_track_intances3:901,prev_track_intances4:901,prev_track_intances5:901,prev_track_intances6:901,prev_track_intances8:901,prev_track_intances9:901x10,prev_track_intances11:901x4x256,prev_track_intances12:901x4,prev_track_intances13:901'
 

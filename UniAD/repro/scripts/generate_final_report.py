@@ -132,13 +132,17 @@ def main():
         ROOT / "artifacts/engines/uniad_tiny_fp16.engine",
         ROOT / "artifacts/engines/uniad_tiny_int8_eq_fp16.engine",
         ROOT / "UniAD_deploy/plugins/lib/lib_uniad_plugins_trt10.9_x86_cu118.so",
-        ROOT / "package/uniad-trt/inference_app/enqueueV3/build/libuniad_plugin.so",
-        ROOT / "package/uniad-trt/inference_app/enqueueV3/build/uniad",
+        ROOT.parent / "runtime/inference_app/enqueueV3/build/libuniad_plugin.so",
+        ROOT.parent / "runtime/inference_app/enqueueV3/build/uniad",
     ]
     artifacts = {}
     for path in artifact_paths:
         require(path)
-        artifacts[str(path.relative_to(ROOT))] = {
+        try:
+            artifact_key = path.relative_to(ROOT)
+        except ValueError:
+            artifact_key = path.relative_to(ROOT.parent)
+        artifacts[str(artifact_key)] = {
             "size_bytes": path.stat().st_size,
             "sha256": sha256(path),
         }

@@ -61,5 +61,7 @@ python tools/evaluate_planning_outputs.py \
   --predictions "${OUTPUT_PATH}/planning_predictions.csv" \
   --ground-truth "${GROUND_TRUTH_PATH}" \
   --reference-predictions "${REFERENCE_PATH}" \
+  --prediction-protocol scene_reset \
+  --reference-protocol scene_reset \
   --output "${OUTPUT_PATH}/planning_metrics_vs_deployment_pytorch.json" \
   > "${OUTPUT_PATH}/planning_evaluation.log"

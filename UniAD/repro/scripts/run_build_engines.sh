@@ -10,7 +10,8 @@ ENGINE_SET=${ENGINE_SET:-fp32,fp16,int8_eq_fp16}
 
 FP_ONNX=${1:-${REPRO_ROOT}/artifacts/onnx/uniad_tiny_imgx0.25_cp.repaired.onnx}
 INT8_ONNX=${2:-${REPRO_ROOT}/artifacts/onnx/uniad_tiny_int8_eq_dq_only.onnx}
-PLUGIN_PATH="${REPRO_ROOT}/package/uniad-trt/inference_app/enqueueV3/build/libuniad_plugin.so"
+APP_ROOT=${UNIAD_APP_ROOT:-${REPRO_ROOT}/../runtime/inference_app/enqueueV3}
+PLUGIN_PATH="${APP_ROOT}/build/libuniad_plugin.so"
 ENGINE_DIR="${ARTIFACT_ROOT}/engines"
 CACHE_DIR="${ARTIFACT_ROOT}/timing_cache"
 

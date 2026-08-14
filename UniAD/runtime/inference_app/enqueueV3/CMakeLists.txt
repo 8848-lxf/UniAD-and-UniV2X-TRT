@@ -11,6 +11,11 @@ set(UNIAD_BEV_W 50 CACHE STRING "UniAD BEV width")
 set(UNIAD_IMG_H 256 CACHE STRING "UniAD padded input image height")
 set(UNIAD_IMG_W 416 CACHE STRING "UniAD padded input image width")
 set(UNIAD_IMAGE_RESIZE_SCALE 0.25 CACHE STRING "Raw nuScenes image resize scale")
+option(UNIAD_USE_LIBJPEG_DECODER "Use libjpeg-compatible decoding for PyTorch/OpenCV parity" ON)
+set(UNIAD_JPEG_ROOT "" CACHE PATH "Conda libjpeg-turbo prefix")
+set(UNIAD_STB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../common/dependencies/stb" CACHE PATH "STB source root")
+set(UNIAD_CUOSD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../common/dependencies/cuOSD" CACHE PATH "cuOSD source root")
+set(UNIAD_BEVFORMER_TRT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../dependencies/BEVFormer_tensorrt" CACHE PATH "BEVFormer TensorRT source root")
 add_compile_definitions(
   UNIAD_BEV_H=${UNIAD_BEV_H}
   UNIAD_BEV_W=${UNIAD_BEV_W}
@@ -30,13 +35,26 @@ endif()
 set(CUDNN_ROOT "" CACHE PATH "Directory containing cuDNN lib and include trees")
 set(TENSORRT_INCLUDE_DIRS ${TENSORRT_PATH}/include/)
 set(TENSORRT_LIBRARY_DIRS ${TENSORRT_PATH}/lib/)
-set(STB_LIB_PTH ../../../common/dependencies/stb/)
-set(CUOSD_LIB_PTH ../../../common/dependencies/cuOSD/)
+set(STB_LIB_PTH ${UNIAD_STB_ROOT})
+set(CUOSD_LIB_PTH ${UNIAD_CUOSD_ROOT})
 find_file(CUDNN_LIBRARY
   NAMES libcudnn.so.9 libcudnn.so
   PATHS ${CUDNN_ROOT}/lib ${CUDNN_ROOT}
   NO_DEFAULT_PATH
   REQUIRED)
+if(UNIAD_USE_LIBJPEG_DECODER)
+  if(UNIAD_JPEG_ROOT)
+    find_path(UNIAD_JPEG_INCLUDE_DIR jpeglib.h
+      PATHS ${UNIAD_JPEG_ROOT}/include NO_DEFAULT_PATH REQUIRED)
+    find_library(UNIAD_JPEG_LIBRARY jpeg
+      PATHS ${UNIAD_JPEG_ROOT}/lib NO_DEFAULT_PATH REQUIRED)
+  else()
+    find_package(JPEG REQUIRED)
+    set(UNIAD_JPEG_INCLUDE_DIR ${JPEG_INCLUDE_DIR})
+    set(UNIAD_JPEG_LIBRARY ${JPEG_LIBRARY})
+  endif()
+  add_compile_definitions(UNIAD_USE_LIBJPEG_DECODER)
+endif()
 
 add_compile_options(-Wno-deprecated-declarations)
 add_compile_definitions(ENABLE_TEXT_BACKEND_STB WIN_INTERFACE_CUSTOM)
@@ -49,7 +67,8 @@ include_directories(
   ${STB_LIB_PTH}
   ${CUOSD_LIB_PTH}/src
   ${TENSORRT_INCLUDE_DIRS}
-  ../../dependencies/BEVFormer_tensorrt/TensorRT/common
+  ${UNIAD_JPEG_INCLUDE_DIR}
+  ${UNIAD_BEVFORMER_TRT_ROOT}/TensorRT/common
 )
 link_directories(${TENSORRT_LIBRARY_DIRS})
 
@@ -67,10 +86,10 @@ file(GLOB_RECURSE VISUALIZE_FILES
 )
 
 file(GLOB_RECURSE PLUGIN_FILES 
-  ../../dependencies/BEVFormer_tensorrt/TensorRT/common/*.cpp 
-  ../../dependencies/BEVFormer_tensorrt/TensorRT/common/*.cu 
-  ../../dependencies/BEVFormer_tensorrt/TensorRT/plugin/*/*.cu 
-  ../../dependencies/BEVFormer_tensorrt/TensorRT/plugin/*/*.cpp
+  ${UNIAD_BEVFORMER_TRT_ROOT}/TensorRT/common/*.cpp
+  ${UNIAD_BEVFORMER_TRT_ROOT}/TensorRT/common/*.cu
+  ${UNIAD_BEVFORMER_TRT_ROOT}/TensorRT/plugin/*/*.cu
+  ${UNIAD_BEVFORMER_TRT_ROOT}/TensorRT/plugin/*/*.cpp
 )
 
 set(SHARED_TARGET uniad_plugin)
@@ -111,4 +130,5 @@ target_link_libraries(uniad
   uniad_kernel
   nvinfer
   nvinfer_plugin
+  ${UNIAD_JPEG_LIBRARY}
 )

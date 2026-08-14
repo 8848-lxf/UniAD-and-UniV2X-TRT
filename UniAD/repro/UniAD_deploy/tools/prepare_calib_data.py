@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import argparse
+import csv
 import json
 import os
 import numpy as np
@@ -89,6 +90,17 @@ def parse_args():
             'at each scene boundary; official_literal initializes only at global '
             'sample_id 0 and carries external state across scene boundaries while '
             'use_prev_bev=0 lets the model reset internally'))
+    parser.add_argument(
+        '--audit-output',
+        help=(
+            'optional NPZ path for per-frame forward_uniad_trt raw planning and '
+            'packed occupancy outputs'))
+    parser.add_argument(
+        '--audit-only', action='store_true',
+        help='run the recurrent PyTorch audit without collecting calibration tensors')
+    parser.add_argument(
+        '--max-dataset-frames', type=int, default=0,
+        help='maximum validation frames to traverse; 0 traverses the complete split')
     parser.add_argument('--bev-height', type=int, default=50)
     parser.add_argument('--img-height', type=int, default=256)
     parser.add_argument('--img-width', type=int, default=416)
@@ -171,6 +183,8 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.audit_only and not args.audit_output:
+        raise ValueError('--audit-only requires --audit-output')
 
     if args.workers_per_gpu > 0 and os.name == 'posix':
         # This legacy dataset stores dict_keys views that cannot be pickled by
@@ -410,8 +424,15 @@ def main():
     calibration_batches = {}
     calibration_frames = []
     num_calib_data = 0
+    audit_planning = []
+    audit_seg_packed = []
+    audit_positive_cells = []
+    audit_frames = []
+    audit_seg_shape = None
     previous_scene_token = None
     for sample_id, data in tqdm(enumerate(data_loader)):
+        if args.max_dataset_frames > 0 and sample_id >= args.max_dataset_frames:
+            break
         img_metas = data["img_metas"][0].data
         timestamp = data["timestamp"][0] if data["timestamp"] is not None else None
         scene_token = img_metas[0][0]["scene_token"]
@@ -494,6 +515,36 @@ def main():
 
         with torch.no_grad():
             dummy_outputs = model.forward_uniad_trt(**onnx_inputs)
+        if args.audit_output:
+            planning = dummy_outputs[-1].detach().cpu().numpy().astype(np.float32)
+            planning = planning.reshape(-1, 2)
+            if planning.shape != (6, 2) or not np.isfinite(planning).all():
+                raise RuntimeError(
+                    f'Invalid planning output at frame {sample_id}: {planning.shape}')
+            seg_out = dummy_outputs[-2].detach().cpu().numpy()
+            if audit_seg_shape is None:
+                audit_seg_shape = tuple(seg_out.shape)
+            elif tuple(seg_out.shape) != audit_seg_shape:
+                raise RuntimeError(
+                    f'seg_out shape changed at frame {sample_id}: '
+                    f'{seg_out.shape} != {audit_seg_shape}')
+            seg_binary = np.ascontiguousarray(seg_out.reshape(-1) != 0)
+            audit_planning.append(planning)
+            audit_seg_packed.append(
+                np.packbits(seg_binary, bitorder='little'))
+            audit_positive_cells.append(int(np.count_nonzero(seg_binary)))
+            audit_frames.append({
+                'dataset_index': int(sample_id),
+                'scene_token': scene_token,
+                'scene_start': bool(new_scene),
+                'use_prev_bev': int(
+                    onnx_inputs['use_prev_bev'].reshape(-1)[0].item()),
+                'track_count': int(
+                    onnx_inputs['prev_track_intances0'].shape[0]),
+                'timestamp': float(
+                    onnx_inputs['timestamp'].reshape(-1)[0].item()),
+                'positive_occupancy_cells': audit_positive_cells[-1],
+            })
         max_obj_id = dummy_outputs[-3]
         bev_embed = dummy_outputs[-9]
         prev_l2g_r_mat_out = dummy_outputs[-10]
@@ -551,7 +602,7 @@ def main():
             print(" ")
             print(sorted(shape0_dict.items(), key=lambda item: item[1], reverse=True))
             
-        else:
+        elif not args.audit_only:
             # save calibration data
             if shape0 == onnx_inputs['prev_track_intances0'].shape[0]:
                 for key in onnx_input_shapes.keys():
@@ -570,7 +621,70 @@ def main():
                 if args.max_calibration_samples > 0 and num_calib_data >= args.max_calibration_samples:
                     break
 
-    if shape0 is not None:
+    if args.audit_output:
+        if not audit_planning:
+            raise RuntimeError('The PyTorch audit produced no frames')
+        audit_output = os.path.abspath(args.audit_output)
+        os.makedirs(os.path.dirname(audit_output), exist_ok=True)
+        np.savez_compressed(
+            audit_output,
+            planning=np.stack(audit_planning),
+            seg_out_packed=np.stack(audit_seg_packed),
+            seg_out_shape=np.asarray(audit_seg_shape, dtype=np.int64),
+            positive_occupancy_cells=np.asarray(
+                audit_positive_cells, dtype=np.int64),
+            scene_start=np.asarray(
+                [frame['scene_start'] for frame in audit_frames], dtype=np.bool_),
+            use_prev_bev=np.asarray(
+                [frame['use_prev_bev'] for frame in audit_frames], dtype=np.int32),
+            track_count=np.asarray(
+                [frame['track_count'] for frame in audit_frames], dtype=np.int32),
+            timestamp=np.asarray(
+                [frame['timestamp'] for frame in audit_frames], dtype=np.float32),
+        )
+        csv_path = audit_output + '.planning.csv'
+        with open(csv_path, 'w', newline='') as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(
+                ['frame'] + [
+                    axis + str(step)
+                    for step in range(1, 7)
+                    for axis in ('x', 'y')
+                ])
+            for frame, planning in enumerate(audit_planning):
+                writer.writerow([frame] + planning.reshape(-1).tolist())
+        audit_report_path = audit_output + '.report.json'
+        with open(audit_report_path, 'w') as report_file:
+            json.dump({
+                'schema_version': 1,
+                'config': os.path.abspath(args.config),
+                'checkpoint': os.path.abspath(args.checkpoint),
+                'dataset_split': args.dataset_split,
+                'dataset_frames_available': len(dataset),
+                'frames_processed': len(audit_frames),
+                'scene_count': int(sum(
+                    frame['scene_start'] for frame in audit_frames)),
+                'temporal_protocol': args.temporal_protocol,
+                'seg_out_shape': list(audit_seg_shape),
+                'frames_with_positive_occupancy': int(sum(
+                    value > 0 for value in audit_positive_cells)),
+                'positive_occupancy_cells': int(sum(audit_positive_cells)),
+                'planning_csv': csv_path,
+                'frames': audit_frames,
+            }, report_file, indent=2, sort_keys=True)
+            report_file.write('\n')
+        with open(csv_path + '.manifest.json', 'w') as manifest_file:
+            json.dump({
+                'schema_version': 1,
+                'producer': 'prepare_calib_data.py forward_uniad_trt audit',
+                'temporal_protocol': args.temporal_protocol,
+                'frames': len(audit_frames),
+                'trajectory': 'raw outs_planning before collision optimization',
+            }, manifest_file, indent=2, sort_keys=True)
+            manifest_file.write('\n')
+        print(f'Saved {len(audit_frames)} PyTorch audit frames to {audit_output}')
+
+    if shape0 is not None and not args.audit_only:
         if num_calib_data == 0:
             raise RuntimeError(f'No calibration samples found with shape0={shape0}')
         npz_data = {

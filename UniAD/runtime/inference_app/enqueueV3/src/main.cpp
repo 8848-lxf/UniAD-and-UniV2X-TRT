@@ -526,6 +526,9 @@ static void write_summary_json(
     bool visualization_enabled,
     int fixed_track_count,
     bool collision_optimization,
+    bool occupancy_dump_enabled,
+    int preprocessed_image_dump_frames,
+    const std::string& temporal_protocol,
     bool carry_state_across_scenes,
     const LatencySummary& model,
     const LatencySummary& inference,
@@ -548,6 +551,9 @@ static void write_summary_json(
             << "  \"visualization_enabled\": " << (visualization_enabled ? "true" : "false") << ",\n"
             << "  \"fixed_track_input_count\": " << fixed_track_count << ",\n"
             << "  \"collision_optimization_enabled\": " << (collision_optimization ? "true" : "false") << ",\n"
+            << "  \"occupancy_dump_enabled\": " << (occupancy_dump_enabled ? "true" : "false") << ",\n"
+            << "  \"preprocessed_image_dump_frames\": " << preprocessed_image_dump_frames << ",\n"
+            << "  \"temporal_protocol\": \"" << json_escape(temporal_protocol) << "\",\n"
             << "  \"carry_state_across_scenes\": " << (carry_state_across_scenes ? "true" : "false") << ",\n"
             << "  \"collision_optimization_audit\": {\n"
             << "    \"decode_calls\": " << collision_optimization_audit().decode_calls << ",\n"
@@ -583,7 +589,7 @@ static void write_summary_json(
 
 int main(int argc, char** argv) {
     if (argc < 6) {
-        fprintf(stderr, "Usage: %s ENGINE PLUGIN INPUT_DIR OUTPUT_DIR NUM_FRAMES [METRICS_JSON] [WARMUP_ITERS] [VISUALIZE_0_OR_1] [FIXED_TRACK_COUNT]\n", argv[0]);
+        fprintf(stderr, "Usage: %s ENGINE PLUGIN INPUT_DIR OUTPUT_DIR NUM_FRAMES [METRICS_JSON] [WARMUP_ITERS] [VISUALIZE_0_OR_1] [FIXED_TRACK_COUNT] [official_literal|scene_reset]\n", argv[0]);
         return 2;
     }
     const std::string engine_pth = argv[1];
@@ -596,9 +602,17 @@ int main(int argc, char** argv) {
     const int num_warmup_iter = argc > 7 ? std::stoi(argv[7]) : 10;
     const bool enable_visualization = argc > 8 ? std::stoi(argv[8]) != 0 : true;
     const int fixed_track_count = argc > 9 ? std::stoi(argv[9]) : 0;
+    std::string temporal_protocol = argc > 10 ? argv[10] : "";
+    if (temporal_protocol.empty()) {
+        const char* carry_scene_state_env = std::getenv("UNIAD_CARRY_STATE_ACROSS_SCENES");
+        const bool legacy_carry = carry_scene_state_env != nullptr
+            && std::string(carry_scene_state_env) != "0";
+        temporal_protocol = legacy_carry ? "official_literal" : "scene_reset";
+    }
     if (num_frames <= 0 || num_warmup_iter < 0 ||
         (fixed_track_count != 0 &&
-         (fixed_track_count < TRACK_INS_MIN || fixed_track_count > TRACK_INS_MAX))) {
+         (fixed_track_count < TRACK_INS_MIN || fixed_track_count > TRACK_INS_MAX)) ||
+        (temporal_protocol != "official_literal" && temporal_protocol != "scene_reset")) {
         fprintf(stderr, "[ERROR] Invalid frame, warmup, or fixed-track count argument.\n");
         return 2;
     }
@@ -668,9 +682,34 @@ int main(int argc, char** argv) {
         mkdir(img_dump_path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
     }
     std::ofstream frame_metrics(metrics_pth + ".frames.csv");
-    frame_metrics << "frame,scene_changed,model_enqueue_ms,inference_call_ms,end_to_end_ms,decoded_boxes\n";
+    frame_metrics << "frame,scene_changed,model_enqueue_ms,inference_call_ms,end_to_end_ms,decoded_boxes,positive_occupancy_cells,collision_candidate_points,collision_modified_points,collision_max_delta_m\n";
     std::ofstream planning_predictions(output_pth + "/planning_predictions.csv");
     std::ofstream raw_planning_predictions(output_pth + "/planning_predictions_raw.csv");
+    const char* dump_occupancy_env = std::getenv("UNIAD_DUMP_OCCUPANCY");
+    const bool dump_occupancy = dump_occupancy_env != nullptr
+        && std::string(dump_occupancy_env) != "0";
+    std::ofstream occupancy_dump;
+    std::vector<TRT_INT_TYPE> occupancy_shape;
+    if (dump_occupancy) {
+        occupancy_dump.open(output_pth + "/seg_out.packbits", std::ios::binary);
+        if (!occupancy_dump) {
+            fprintf(stderr, "[ERROR] Could not create packed occupancy dump.\n");
+            return 2;
+        }
+    }
+    const char* dump_images_env = std::getenv(
+        "UNIAD_DUMP_PREPROCESSED_IMAGE_FRAMES");
+    const int dump_image_frames = dump_images_env != nullptr
+        ? std::max(0, std::atoi(dump_images_env)) : 0;
+    std::ofstream preprocessed_image_dump;
+    if (dump_image_frames > 0) {
+        preprocessed_image_dump.open(
+            output_pth + "/preprocessed_img.float32", std::ios::binary);
+        if (!preprocessed_image_dump) {
+            fprintf(stderr, "[ERROR] Could not create preprocessed image dump.\n");
+            return 2;
+        }
+    }
     planning_predictions << "frame";
     raw_planning_predictions << "frame";
     for (int step = 0; step < 6; ++step) {
@@ -692,14 +731,14 @@ int main(int argc, char** argv) {
     const char* disable_temporal_env = std::getenv("UNIAD_DISABLE_TEMPORAL_STATE");
     const bool disable_temporal_state = disable_temporal_env != nullptr
         && std::string(disable_temporal_env) != "0";
-    const char* carry_scene_state_env = std::getenv("UNIAD_CARRY_STATE_ACROSS_SCENES");
-    const bool carry_state_across_scenes = carry_scene_state_env != nullptr
-        && std::string(carry_scene_state_env) != "0";
+    const bool carry_state_across_scenes = temporal_protocol == "official_literal";
     if (disable_temporal_state) {
         printf("[INFO] Temporal state propagation disabled for independent-frame benchmarking.\n");
     }
     if (carry_state_across_scenes) {
         printf("[INFO] External temporal state is carried across scene boundaries; use_prev_bev=0 requests the model-internal reset.\n");
+    } else {
+        printf("[INFO] External temporal state is reset at every scene boundary.\n");
     }
 
     for (int i=0; i<num_frames; ++i) {
@@ -720,6 +759,11 @@ int main(int argc, char** argv) {
             return 5;
         }
         input.img = pre_processor->img_pre_processing(images, stream);
+        if (i < dump_image_frames) {
+            preprocessed_image_dump.write(
+                reinterpret_cast<const char*>(input.img.data()),
+                input.img.size() * sizeof(float));
+        }
         input.input_shapes["img"] = kernel_params_ref.input_max_shapes.at("img");
         relink_input(input);
 
@@ -728,6 +772,23 @@ int main(int argc, char** argv) {
         kernel->forward_one_frame(input, *output, true, stream);
         checkRuntime(cudaStreamSynchronize(stream));
         const auto inference_end = std::chrono::steady_clock::now();
+
+        if (dump_occupancy) {
+            const auto& frame_shape = output->output_shapes.at("seg_out");
+            if (occupancy_shape.empty()) occupancy_shape = frame_shape;
+            if (frame_shape != occupancy_shape) {
+                fprintf(stderr, "[ERROR] seg_out shape changed at frame %d.\n", i);
+                return 7;
+            }
+            std::vector<std::uint8_t> packed((output->seg_out.size() + 7) / 8, 0);
+            for (std::size_t index = 0; index < output->seg_out.size(); ++index) {
+                if (output->seg_out[index] != 0) {
+                    packed[index / 8] |= static_cast<std::uint8_t>(1U << (index % 8));
+                }
+            }
+            occupancy_dump.write(
+                reinterpret_cast<const char*>(packed.data()), packed.size());
+        }
 
         const std::vector<std::pair<float, float>> raw_planning =
             decode_raw_planning_traj(*output);
@@ -749,7 +810,11 @@ int main(int argc, char** argv) {
         e2e_samples.push_back(e2e_ms);
         frame_metrics << i << "," << (scene_changed ? 1 : 0) << ","
                       << std::fixed << std::setprecision(6) << model_ms << ","
-                      << inference_ms << "," << e2e_ms << "," << boxes.size() << "\n";
+                      << inference_ms << "," << e2e_ms << "," << boxes.size() << ","
+                      << collision_optimization_audit().last_positive_occupancy_cells << ","
+                      << collision_optimization_audit().last_candidate_points << ","
+                      << collision_optimization_audit().last_points_modified << ","
+                      << collision_optimization_audit().last_max_point_delta_m << "\n";
         planning_predictions << i;
         for (const auto& point : planning) planning_predictions << "," << point.first << "," << point.second;
         planning_predictions << "\n";
@@ -775,8 +840,51 @@ int main(int argc, char** argv) {
     const LatencySummary e2e_summary = summarize(e2e_samples);
     write_summary_json(metrics_pth, engine_pth, plugin_pth, num_frames, num_warmup_iter,
                        enable_visualization, fixed_track_count,
-                       collision_optimization_enabled(), carry_state_across_scenes,
+                       collision_optimization_enabled(), dump_occupancy,
+                       std::min(num_frames, dump_image_frames),
+                       temporal_protocol,
+                       carry_state_across_scenes,
                        model_summary, inference_summary, e2e_summary);
+    if (dump_occupancy) {
+        occupancy_dump.close();
+        std::ofstream occupancy_manifest(output_pth + "/seg_out.packbits.manifest.json");
+        occupancy_manifest << "{\n"
+                           << "  \"schema_version\": 1,\n"
+                           << "  \"packing\": \"numpy packbits compatible, little bit order\",\n"
+                           << "  \"temporal_protocol\": \"" << json_escape(temporal_protocol) << "\",\n"
+                           << "  \"frames\": " << num_frames << ",\n"
+                           << "  \"shape\": [";
+        for (std::size_t index = 0; index < occupancy_shape.size(); ++index) {
+            if (index) occupancy_manifest << ", ";
+            occupancy_manifest << occupancy_shape[index];
+        }
+        occupancy_manifest << "]\n}\n";
+    }
+    if (dump_image_frames > 0) {
+        preprocessed_image_dump.close();
+        std::ofstream image_manifest(
+            output_pth + "/preprocessed_img.float32.manifest.json");
+        image_manifest << "{\n"
+                       << "  \"schema_version\": 1,\n"
+                       << "  \"dtype\": \"float32\",\n"
+                       << "  \"layout\": \"NCHW\",\n"
+                       << "  \"frames\": " << std::min(num_frames, dump_image_frames) << ",\n"
+                       << "  \"shape_per_frame\": [1, 6, 3, "
+                       << UNIAD_IMG_H << ", " << UNIAD_IMG_W << "]\n"
+                       << "}\n";
+    }
+    for (const auto& prediction_file : {
+            std::make_pair(output_pth + "/planning_predictions.csv", "collision-optimized"),
+            std::make_pair(output_pth + "/planning_predictions_raw.csv", "raw outs_planning")}) {
+        std::ofstream manifest(prediction_file.first + ".manifest.json");
+        manifest << "{\n"
+                 << "  \"schema_version\": 1,\n"
+                 << "  \"producer\": \"UniAD TensorRT enqueueV3 runtime\",\n"
+                 << "  \"temporal_protocol\": \"" << json_escape(temporal_protocol) << "\",\n"
+                 << "  \"frames\": " << num_frames << ",\n"
+                 << "  \"trajectory\": \"" << prediction_file.second << "\"\n"
+                 << "}\n";
+    }
     printf("[RESULT] model enqueue: mean %.3f ms, p50 %.3f ms, FPS %.3f.\n",
            model_summary.mean, model_summary.p50, 1000.0 / model_summary.mean);
     printf("[RESULT] inference call: mean %.3f ms, p50 %.3f ms.\n",

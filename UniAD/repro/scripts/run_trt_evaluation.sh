@@ -13,6 +13,7 @@ REPRO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ARTIFACT_ROOT=${ARTIFACT_ROOT:-${REPRO_ROOT}/artifacts}
 UNIAD_GPU=${UNIAD_GPU:-0}
 FIXED_TRACK_COUNT=${FIXED_TRACK_COUNT:-1150}
+TEMPORAL_PROTOCOL=${TEMPORAL_PROTOCOL:-official_literal}
 
 case "${PRECISION}" in
   fp32)
@@ -33,15 +34,16 @@ esac
 source "${REPRO_ROOT}/scripts/env_modelopt.sh"
 
 ENGINE_PATH="${ARTIFACT_ROOT}/engines/${ENGINE_NAME}"
-APP_ROOT="${REPRO_ROOT}/package/uniad-trt/inference_app/enqueueV3"
+APP_ROOT=${UNIAD_APP_ROOT:-${REPRO_ROOT}/../runtime/inference_app/enqueueV3}
 APP_PATH="${APP_ROOT}/build/uniad"
 PLUGIN_PATH="${APP_ROOT}/build/libuniad_plugin.so"
 INPUT_PATH="${REPRO_ROOT}/UniAD_deploy/nuscenes_np/uniad_trt_input"
 OUTPUT_PATH="${ARTIFACT_ROOT}/evaluation/tensorrt_${PRECISION}"
 METRICS_PATH="${OUTPUT_PATH}/latency_metrics.json"
+RUNTIME_WORKDIR=${UNIAD_RUNTIME_WORKDIR:-${REPRO_ROOT}/UniAD_deploy}
 
-for required_path in "${ENGINE_PATH}" "${APP_PATH}" "${PLUGIN_PATH}" "${INPUT_PATH}/info.txt"; do
-  if [[ ! -f "${required_path}" ]]; then
+for required_path in "${ENGINE_PATH}" "${APP_PATH}" "${PLUGIN_PATH}" "${INPUT_PATH}/info.txt" "${RUNTIME_WORKDIR}/data"; do
+  if [[ ! -e "${required_path}" ]]; then
     echo "Missing TensorRT evaluation input: ${required_path}" >&2
     exit 2
   fi
@@ -49,7 +51,7 @@ done
 
 mkdir -p "${OUTPUT_PATH}"
 export CUDA_VISIBLE_DEVICES="${UNIAD_GPU}"
-cd "${APP_ROOT}"
+cd "${RUNTIME_WORKDIR}"
 "${APP_PATH}" \
   "${ENGINE_PATH}" \
   "${PLUGIN_PATH}" \
@@ -59,7 +61,8 @@ cd "${APP_ROOT}"
   "${METRICS_PATH}" \
   10 \
   0 \
-  "${FIXED_TRACK_COUNT}"
+  "${FIXED_TRACK_COUNT}" \
+  "${TEMPORAL_PROTOCOL}"
 
 source "${REPRO_ROOT}/scripts/env.sh"
 REFERENCE_ROOT=${REFERENCE_ROOT:-${ARTIFACT_ROOT}}
@@ -67,6 +70,9 @@ REFERENCE_PATH="${REFERENCE_ROOT}/evaluation/pytorch_fp32/planning_predictions.c
 REFERENCE_ARGS=()
 if [[ -f "${REFERENCE_PATH}" ]]; then
   REFERENCE_ARGS=(--reference-predictions "${REFERENCE_PATH}")
+  if [[ -n "${REFERENCE_TEMPORAL_PROTOCOL:-}" ]]; then
+    REFERENCE_ARGS+=(--reference-protocol "${REFERENCE_TEMPORAL_PROTOCOL}")
+  fi
 fi
 
 cd "${REPRO_ROOT}/UniAD_deploy"
@@ -74,4 +80,5 @@ python tools/evaluate_planning_outputs.py \
   --predictions "${OUTPUT_PATH}/planning_predictions.csv" \
   --ground-truth "${REPRO_ROOT}/UniAD_deploy/nuscenes_np/planning_ground_truth" \
   --output "${OUTPUT_PATH}/planning_metrics.json" \
+  --prediction-protocol "${TEMPORAL_PROTOCOL}" \
   "${REFERENCE_ARGS[@]}"

@@ -17,15 +17,16 @@ UNIAD_GPU=${UNIAD_GPU:-6}
 ENGINE_PATH=${ENGINE_PATH:-${BASE_ROOT}/engines/uniad_base_${PRECISION}.engine}
 EVAL_TAG=${EVAL_TAG:-${PRECISION}}
 FIXED_TRACK_COUNT=${FIXED_TRACK_COUNT:-0}
-APP_ROOT="${REPRO_ROOT}/package/uniad-trt/inference_app/enqueueV3"
+APP_ROOT=${UNIAD_APP_ROOT:-${REPRO_ROOT}/../runtime/inference_app/enqueueV3}
 APP_PATH="${APP_ROOT}/build_base/uniad"
 PLUGIN_PATH="${APP_ROOT}/build_base/libuniad_plugin.so"
 INPUT_PATH="${BASE_ROOT}/metadata/trt_inputs"
 OUTPUT_PATH="${BASE_ROOT}/evaluation/tensorrt_${EVAL_TAG}"
 METRICS_PATH="${OUTPUT_PATH}/latency_metrics.json"
+RUNTIME_WORKDIR=${UNIAD_RUNTIME_WORKDIR:-${REPRO_ROOT}/UniAD_deploy}
 
-for required_path in "${ENGINE_PATH}" "${APP_PATH}" "${PLUGIN_PATH}" "${INPUT_PATH}/info.txt"; do
-  if [[ ! -f "${required_path}" ]]; then
+for required_path in "${ENGINE_PATH}" "${APP_PATH}" "${PLUGIN_PATH}" "${INPUT_PATH}/info.txt" "${RUNTIME_WORKDIR}/data"; do
+  if [[ ! -e "${required_path}" ]]; then
     echo "Missing UniAD-base evaluation input: ${required_path}" >&2
     exit 2
   fi
@@ -33,7 +34,7 @@ done
 
 mkdir -p "${OUTPUT_PATH}"
 export CUDA_VISIBLE_DEVICES="${UNIAD_GPU}"
-cd "${APP_ROOT}"
+cd "${RUNTIME_WORKDIR}"
 "${APP_PATH}" \
   "${ENGINE_PATH}" \
   "${PLUGIN_PATH}" \
