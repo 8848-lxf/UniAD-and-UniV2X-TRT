@@ -248,6 +248,19 @@ The UniAD Python base and tiny evaluation configurations already set `workers_pe
 
 ---
 
+## 2026-08-14T08:43:36-07:00 (PDT) - FP16 occupancy mixed-precision closure
+
+- Resumed the interrupted `fp16_all_state_fp32` run and evaluated all 6018 frames. Protecting recurrent BEV and float track-state lineages improved occupancy IoU only from `71.278528%` to `71.686034%`; optimized avg. L2 regressed from `0.837544` to `0.842598 m`, and optimized box Col changed from `0.459732%` to `0.462501%`. This candidate is rejected.
+- Scene-position aggregation localized the effect. Recurrent-state protection raises scene-start IoU from `79.749421%` to `92.783810%`, but offsets `1-4`, `5-9`, `10-19`, and `20+` remain `75.295846/69.902859/69.975025/71.572604%`. The dominant error is recomputed every frame in the shared feature and occupancy consumer path; it is not only long-horizon state accumulation.
+- Fixed the mixed-precision builder audit boundary. `--fp32-lineage-convolutions` now distinguishes FP32 output dtype from FP32 convolution compute and records convolution depth. `--force-fp32-exclusive-output-lineage` records and constrains only a requested output group's non-shared ancestry. Both parameters default off.
+- A controlled 200-frame sweep compared one Python-builder FP16 control with final-Conv, decoder-Conv-depth `2/4/8`, recurrent-state, occupancy/planning-exclusive, and combined state+consumer candidates. The best IoU was `92.017620%` for the combined candidate, only `0.009589` point above state-only, while enqueue p50 increased from `11.984384` to `14.986192 ms`. No candidate passed a full-run promotion gate.
+- Added optional `seg_score_out` binding support and `UNIAD_DUMP_OCCUPANCY_SCORES=1`. A debug engine exposed the exact `ReduceMax(pred_ins_sigmoid)` values before `Greater(..., 0.1)`; `score > 0.1` reproduced `seg_out` bit-for-bit on 200/200 frames. The globally optimal threshold was about `0.0990` and improved IoU by only `0.013249` point. Threshold bias is not the root cause.
+- 3x3 opening, closing, and median filters reduced IoU to `88.936263/84.492192/89.174446%`; FP16 errors are not removable isolated speckles.
+- Final acceptance: plain FP16 remains a raw-planning diagnostic and is rejected for the collision-optimized deployment path. Use TensorRT FP32 for the accuracy reference or the already accepted explicit-INT8 graph with terminal occupancy FP16 protection for reduced precision, retaining its documented occupancy-parity limitation. Do not report ordinary FP16 as full-task accuracy-equivalent.
+- Compact evidence: `UniAD/evidence/trained_tiny_fp16_occupancy_audit_20260814/summary.json`. Engines, timing caches, score dumps, packed masks, and reports remain under `/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt109_20260814` and are not committed.
+
+---
+
 ## Iteration 014 - 2026-08-13T08:19:03-07:00
 
 - Added an auditable `official_literal` calibration mode matching NVIDIA's script semantics: only global `sample_id == 0` initializes external recurrent state; scene changes carry the previous external track/BEV/timestamp/pose outputs and signal the model-internal reset with `use_prev_bev=0`. The existing per-scene reset remains the default for compatibility.

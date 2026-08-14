@@ -697,6 +697,20 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
+    const char* dump_occupancy_scores_env = std::getenv(
+        "UNIAD_DUMP_OCCUPANCY_SCORES");
+    const bool dump_occupancy_scores = dump_occupancy_scores_env != nullptr
+        && std::string(dump_occupancy_scores_env) != "0";
+    std::ofstream occupancy_score_dump;
+    std::vector<TRT_INT_TYPE> occupancy_score_shape;
+    if (dump_occupancy_scores) {
+        occupancy_score_dump.open(
+            output_pth + "/seg_score_out.float32", std::ios::binary);
+        if (!occupancy_score_dump) {
+            fprintf(stderr, "[ERROR] Could not create occupancy score dump.\n");
+            return 2;
+        }
+    }
     const char* dump_images_env = std::getenv(
         "UNIAD_DUMP_PREPROCESSED_IMAGE_FRAMES");
     const int dump_image_frames = dump_images_env != nullptr
@@ -789,6 +803,32 @@ int main(int argc, char** argv) {
             occupancy_dump.write(
                 reinterpret_cast<const char*>(packed.data()), packed.size());
         }
+        if (dump_occupancy_scores) {
+            const auto shape_iter = output->output_shapes.find("seg_score_out");
+            if (shape_iter == output->output_shapes.end()) {
+                fprintf(stderr,
+                        "[ERROR] Engine does not expose seg_score_out.\n");
+                return 8;
+            }
+            const auto& frame_shape = shape_iter->second;
+            if (occupancy_score_shape.empty()) occupancy_score_shape = frame_shape;
+            if (frame_shape != occupancy_score_shape) {
+                fprintf(stderr,
+                        "[ERROR] seg_score_out shape changed at frame %d.\n", i);
+                return 8;
+            }
+            const std::size_t score_count = std::accumulate(
+                frame_shape.begin(), frame_shape.end(), std::size_t{1},
+                std::multiplies<std::size_t>());
+            if (score_count != output->seg_score_out.size()) {
+                fprintf(stderr,
+                        "[ERROR] Unexpected seg_score_out size at frame %d.\n", i);
+                return 8;
+            }
+            occupancy_score_dump.write(
+                reinterpret_cast<const char*>(output->seg_score_out.data()),
+                score_count * sizeof(float));
+        }
 
         const std::vector<std::pair<float, float>> raw_planning =
             decode_raw_planning_traj(*output);
@@ -859,6 +899,23 @@ int main(int argc, char** argv) {
             occupancy_manifest << occupancy_shape[index];
         }
         occupancy_manifest << "]\n}\n";
+    }
+    if (dump_occupancy_scores) {
+        occupancy_score_dump.close();
+        std::ofstream score_manifest(
+            output_pth + "/seg_score_out.float32.manifest.json");
+        score_manifest << "{\n"
+                       << "  \"schema_version\": 1,\n"
+                       << "  \"dtype\": \"float32\",\n"
+                       << "  \"temporal_protocol\": \""
+                       << json_escape(temporal_protocol) << "\",\n"
+                       << "  \"frames\": " << num_frames << ",\n"
+                       << "  \"shape_per_frame\": [";
+        for (std::size_t index = 0; index < occupancy_score_shape.size(); ++index) {
+            if (index) score_manifest << ", ";
+            score_manifest << occupancy_score_shape[index];
+        }
+        score_manifest << "]\n}\n";
     }
     if (dump_image_frames > 0) {
         preprocessed_image_dump.close();

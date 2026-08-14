@@ -332,8 +332,106 @@ def constrain_matching_layers_to_fp32(network, patterns):
     }
 
 
+def constrain_exclusive_output_lineage_to_fp32(network, output_names):
+    layers = [network.get_layer(index) for index in range(network.num_layers)]
+    layers_by_name = {layer.name: layer for layer in layers}
+    producers = {}
+    for layer in layers:
+        for output_index in range(layer.num_outputs):
+            tensor = layer.get_output(output_index)
+            if tensor is not None:
+                producers[tensor.name] = layer.name
+
+    network_outputs = [
+        network.get_output(index).name for index in range(network.num_outputs)
+    ]
+    missing = [name for name in output_names if name not in network_outputs]
+    if missing:
+        raise RuntimeError(
+            "Exclusive FP32 lineage outputs not found in network outputs: %s"
+            % missing
+        )
+
+    def ancestors(names):
+        result = set()
+        stack = list(names)
+        while stack:
+            tensor_name = stack.pop()
+            layer_name = producers.get(tensor_name)
+            if layer_name is None or layer_name in result:
+                continue
+            result.add(layer_name)
+            layer = layers_by_name[layer_name]
+            for input_index in range(layer.num_inputs):
+                tensor = layer.get_input(input_index)
+                if tensor is not None:
+                    stack.append(tensor.name)
+        return result
+
+    target_lineage = ancestors(output_names)
+    other_outputs = [name for name in network_outputs if name not in output_names]
+    other_lineage = ancestors(other_outputs)
+    exclusive_lineage = target_lineage - other_lineage
+    precision_types = {
+        trt.LayerType.ACTIVATION,
+        trt.LayerType.CONCATENATION,
+        trt.LayerType.CONVOLUTION,
+        trt.LayerType.EINSUM,
+        trt.LayerType.ELEMENTWISE,
+        trt.LayerType.GATHER,
+        trt.LayerType.IDENTITY,
+        trt.LayerType.MATRIX_MULTIPLY,
+        trt.LayerType.NORMALIZATION,
+        trt.LayerType.PLUGIN_V2,
+        trt.LayerType.REDUCE,
+        trt.LayerType.RESIZE,
+        trt.LayerType.SCATTER,
+        trt.LayerType.SLICE,
+        trt.LayerType.SOFTMAX,
+        trt.LayerType.UNARY,
+    }
+    constrained = {}
+    skipped = {}
+    for layer in layers:
+        if layer.name not in exclusive_lineage:
+            continue
+        float_outputs = []
+        for output_index in range(layer.num_outputs):
+            tensor = layer.get_output(output_index)
+            if tensor is not None and tensor.dtype == trt.float32:
+                layer.set_output_type(output_index, trt.float32)
+                float_outputs.append(tensor.name)
+        if not float_outputs:
+            skipped[layer.name] = {
+                "type": str(layer.type),
+                "reason": "no FP32 output",
+            }
+            continue
+        precision_constrained = layer.type in precision_types
+        if precision_constrained and layer.type != trt.LayerType.PLUGIN_V2:
+            layer.precision = trt.float32
+        constrained[layer.name] = {
+            "type": str(layer.type),
+            "outputs": float_outputs,
+            "precision_constrained": precision_constrained,
+        }
+    return {
+        "target_outputs": output_names,
+        "other_outputs": other_outputs,
+        "target_lineage_layer_count": len(target_lineage),
+        "other_lineage_layer_count": len(other_lineage),
+        "exclusive_lineage_layer_count": len(exclusive_lineage),
+        "constrained_layers": constrained,
+        "skipped_layers": skipped,
+    }
+
+
 def constrain_output_lineage_to_fp32(
-    network, output_names, max_depth, require_network_outputs=True
+    network,
+    output_names,
+    max_depth,
+    max_convolutions=0,
+    require_network_outputs=True,
 ):
     producers = {}
     for index in range(network.num_layers):
@@ -361,7 +459,7 @@ def constrain_output_lineage_to_fp32(
         producer = producers.get(name)
         if producer is None:
             raise RuntimeError("No producer found for network output %s" % name)
-        stack.append((producer, 0, name))
+        stack.append((producer, 0, name, 0))
 
     # Keep shape/index/control-flow operations in their native type, while
     # preserving numerical operators and output joins in FP32.
@@ -380,16 +478,19 @@ def constrain_output_lineage_to_fp32(
         trt.LayerType.SOFTMAX,
         trt.LayerType.UNARY,
     }
+    if max_convolutions > 0:
+        precision_types.add(trt.LayerType.CONVOLUTION)
     stop_types = {
-        trt.LayerType.CONVOLUTION,
         trt.LayerType.DEQUANTIZE,
         trt.LayerType.QUANTIZE,
         trt.LayerType.SHAPE,
         trt.LayerType.TOPK,
     }
     while stack:
-        layer, depth, root_output = stack.pop()
-        key = (layer.name, root_output)
+        layer, depth, root_output, convolution_depth = stack.pop()
+        is_convolution = layer.type == trt.LayerType.CONVOLUTION
+        current_convolution_depth = convolution_depth + int(is_convolution)
+        key = (layer.name, root_output, current_convolution_depth)
         if key in visited or depth > max_depth:
             continue
         visited.add(key)
@@ -406,14 +507,20 @@ def constrain_output_lineage_to_fp32(
                 "outputs": [name for _, name in float_outputs],
                 "root_outputs": [],
                 "minimum_depth": depth,
+                "minimum_convolution_depth": current_convolution_depth,
                 "precision_constrained": layer.type in precision_types,
             })
             if root_output not in entry["root_outputs"]:
                 entry["root_outputs"].append(root_output)
             entry["minimum_depth"] = min(entry["minimum_depth"], depth)
+            entry["minimum_convolution_depth"] = min(
+                entry["minimum_convolution_depth"], current_convolution_depth)
             if layer.type in precision_types and layer.type != trt.LayerType.PLUGIN_V2:
                 layer.precision = trt.float32
-        if layer.type in stop_types:
+        if (
+            layer.type in stop_types
+            or (is_convolution and current_convolution_depth >= max_convolutions)
+        ):
             continue
         for input_index in range(layer.num_inputs):
             tensor = layer.get_input(input_index)
@@ -421,10 +528,16 @@ def constrain_output_lineage_to_fp32(
                 continue
             producer = producers.get(tensor.name)
             if producer is not None:
-                stack.append((producer, depth + 1, root_output))
+                stack.append((
+                    producer,
+                    depth + 1,
+                    root_output,
+                    current_convolution_depth,
+                ))
     return {
         "outputs": output_names,
         "max_depth": max_depth,
+        "max_convolutions": max_convolutions,
         "require_network_outputs": require_network_outputs,
         "constrained_layers": constrained,
     }
@@ -457,11 +570,16 @@ def main():
     parser.add_argument("--stabilize-inverse-sigmoid", action="store_true")
     parser.add_argument("--stabilize-layernorm", action="store_true")
     parser.add_argument("--force-fp32-layer-regex", action="append", default=[])
+    parser.add_argument(
+        "--force-fp32-exclusive-output-lineage", action="append", default=[])
     parser.add_argument("--force-fp32-output-lineage", action="append", default=[])
     parser.add_argument("--force-fp32-tensor-lineage", action="append", default=[])
     parser.add_argument("--fp32-lineage-depth", type=int, default=12)
+    parser.add_argument("--fp32-lineage-convolutions", type=int, default=0)
     parser.add_argument("--prefer-precision-constraints", action="store_true")
     args = parser.parse_args()
+    if args.fp32_lineage_convolutions < 0:
+        parser.error("--fp32-lineage-convolutions must be non-negative")
 
     onnx_path = os.path.realpath(args.onnx)
     plugin_path = os.path.realpath(args.plugin)
@@ -612,12 +730,24 @@ def main():
         )
         if not regex_constraints["constrained_layers"]:
             raise RuntimeError("No layers matched --force-fp32-layer-regex")
+    exclusive_output_lineage_constraints = None
+    if args.force_fp32_exclusive_output_lineage:
+        exclusive_output_lineage_constraints = (
+            constrain_exclusive_output_lineage_to_fp32(
+                network, args.force_fp32_exclusive_output_lineage)
+        )
+        if not exclusive_output_lineage_constraints["constrained_layers"]:
+            raise RuntimeError(
+                "No layers constrained by "
+                "--force-fp32-exclusive-output-lineage"
+            )
     output_lineage_constraints = None
     if args.force_fp32_output_lineage:
         output_lineage_constraints = constrain_output_lineage_to_fp32(
             network,
             args.force_fp32_output_lineage,
             args.fp32_lineage_depth,
+            args.fp32_lineage_convolutions,
         )
         if not output_lineage_constraints["constrained_layers"]:
             raise RuntimeError("No layers constrained by --force-fp32-output-lineage")
@@ -627,6 +757,7 @@ def main():
             network,
             args.force_fp32_tensor_lineage,
             args.fp32_lineage_depth,
+            args.fp32_lineage_convolutions,
             require_network_outputs=False,
         )
         if not tensor_lineage_constraints["constrained_layers"]:
@@ -648,6 +779,7 @@ def main():
         inverse_sigmoid_constraints is not None
         or layernorm_constraints is not None
         or regex_constraints is not None
+        or exclusive_output_lineage_constraints is not None
         or output_lineage_constraints is not None
         or tensor_lineage_constraints is not None
     ):
@@ -723,6 +855,8 @@ def main():
         "inverse_sigmoid_constraints": inverse_sigmoid_constraints,
         "layernorm_constraints": layernorm_constraints,
         "regex_constraints": regex_constraints,
+        "exclusive_output_lineage_constraints": (
+            exclusive_output_lineage_constraints),
         "output_lineage_constraints": output_lineage_constraints,
         "tensor_lineage_constraints": tensor_lineage_constraints,
         "prefer_precision_constraints": args.prefer_precision_constraints,

@@ -131,7 +131,8 @@ struct KernelParams {
     {"obj_idxes", {TRACK_MAX}},
     {"max_obj_id_out", {1}},
     {"outs_planning", {1, 6, 2}},
-    {"seg_out", {1, 5, 1, UNIAD_BEV_H, UNIAD_BEV_W}}
+    {"seg_out", {1, 5, 1, UNIAD_BEV_H, UNIAD_BEV_W}},
+    {"seg_score_out", {1, 5, UNIAD_BEV_H, UNIAD_BEV_W}}
   };
 };
 
@@ -232,6 +233,7 @@ struct KernelOutput {
   std::vector<int32_t> max_obj_id_out = std::vector<int32_t>(1);
   std::vector<float> outs_planning = std::vector<float>(1*6*2);
   std::vector<int32_t> seg_out = std::vector<int32_t>(1*5*1*UNIAD_BEV_H*UNIAD_BEV_W);
+  std::vector<float> seg_score_out = std::vector<float>(1*5*UNIAD_BEV_H*UNIAD_BEV_W);
 
   std::unordered_map<std::string, void*> data_ptrs = {
     {"prev_track_intances0_out", prev_track_intances0_out.data()},
@@ -256,7 +258,8 @@ struct KernelOutput {
     {"max_obj_id_out", max_obj_id_out.data()},
     {"bev_embed", bev_embed.data()},
     {"outs_planning", outs_planning.data()},
-    {"seg_out", seg_out.data()}
+    {"seg_out", seg_out.data()},
+    {"seg_score_out", seg_score_out.data()}
   };
   std::unordered_map<std::string, std::vector<TRT_INT_TYPE>> output_shapes;
   std::unordered_map<std::string, size_t> output_dsizes;

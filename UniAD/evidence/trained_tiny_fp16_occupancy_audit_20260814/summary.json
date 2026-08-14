@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "timestamp_pdt": "2026-08-14T08:43:36-07:00",
+  "model": "UniAD-tiny stage-2 epoch-20 trained checkpoint",
+  "frames": 6018,
+  "scenes": 150,
+  "temporal_protocol": "official_literal",
+  "conclusion": "No tested single-engine FP16 mixed-precision boundary restored occupancy parity without approaching FP32 scope. Plain FP16 remains raw-planning-only and is not accepted for collision-optimized deployment.",
+  "full6018": {
+    "fp16_baseline": {
+      "occupancy_iou_percent": 71.27852831273354,
+      "occupancy_precision_percent": 84.48071947736874,
+      "occupancy_recall_percent": 82.01797044274429,
+      "raw_avg_l2_m": 0.72929669977392,
+      "raw_avg_box_collision_percent": 0.5483549351944167,
+      "optimized_avg_l2_m": 0.8375436118069052,
+      "optimized_avg_box_collision_percent": 0.45973191536501606,
+      "model_enqueue_p50_ms": 13.73528
+    },
+    "fp16_all_recurrent_state_fp32": {
+      "artifact_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt109_20260814/full6018/fp16_all_state_fp32",
+      "occupancy_iou_percent": 71.68603411632652,
+      "occupancy_precision_percent": 84.68128291518823,
+      "occupancy_recall_percent": 82.3673459284622,
+      "raw_avg_l2_m": 0.7356084379990783,
+      "raw_avg_box_collision_percent": 0.5538938739337543,
+      "optimized_avg_l2_m": 0.8425980095881118,
+      "optimized_avg_box_collision_percent": 0.46250138473468483,
+      "model_enqueue_p50_ms": 12.148512,
+      "accepted": false
+    }
+  },
+  "scene_position_iou_percent": {
+    "offset_buckets": ["0", "1-4", "5-9", "10-19", "20+"],
+    "frames_per_bucket": [150, 600, 750, 1500, 3018],
+    "fp16_baseline": [
+      79.749421,
+      75.195962,
+      69.906218,
+      69.645572,
+      71.313178
+    ],
+    "fp16_all_recurrent_state_fp32": [
+      92.78381,
+      75.295846,
+      69.902859,
+      69.975025,
+      71.572604
+    ]
+  },
+  "probe200": {
+    "fp16_python_builder_control": {
+      "occupancy_iou_percent": 91.59803018085474,
+      "raw_avg_l2_m": 0.7380423745509809,
+      "model_enqueue_p50_ms": 10.902432
+    },
+    "fp16_final_conv_fp32": {
+      "occupancy_iou_percent": 90.4847062863029,
+      "raw_avg_l2_m": 0.7387468141861125,
+      "model_enqueue_p50_ms": 10.752992
+    },
+    "fp16_decoder_conv_depth_2_fp32": {
+      "occupancy_iou_percent": 90.53857978135011,
+      "model_enqueue_p50_ms": 12.396512
+    },
+    "fp16_decoder_conv_depth_4_fp32": {
+      "occupancy_iou_percent": 90.44509959013446,
+      "model_enqueue_p50_ms": 12.86656
+    },
+    "fp16_decoder_conv_depth_8_fp32": {
+      "occupancy_iou_percent": 91.34555647060523,
+      "raw_avg_l2_m": 0.7211675665112125,
+      "model_enqueue_p50_ms": 13.182928
+    },
+    "fp16_all_recurrent_state_fp32": {
+      "occupancy_iou_percent": 92.00803096833835,
+      "raw_avg_l2_m": 0.7210556405247188,
+      "model_enqueue_p50_ms": 11.984384
+    },
+    "fp16_occupancy_planning_exclusive_fp32": {
+      "occupancy_iou_percent": 90.57468630034951,
+      "raw_avg_l2_m": 0.7385980101133706,
+      "model_enqueue_p50_ms": 13.117952
+    },
+    "fp16_state_occupancy_planning_fp32": {
+      "occupancy_iou_percent": 92.01761987290584,
+      "raw_avg_l2_m": 0.7210303145524812,
+      "model_enqueue_p50_ms": 14.986192
+    }
+  },
+  "threshold_audit": {
+    "score_output": "ReduceMax(pred_ins_sigmoid)",
+    "engine_mask_exact_at_threshold_0_1_frames": 200,
+    "baseline_iou_percent": 91.59803018085474,
+    "best_global_threshold": 0.09899902343749999,
+    "best_global_iou_percent": 91.61127895266868,
+    "threshold_bias_is_root_cause": false
+  },
+  "spatial_filter_audit_iou_percent": {
+    "raw": 91.59803018085474,
+    "opening_3x3": 88.93626341534643,
+    "closing_3x3": 84.49219195258179,
+    "median_3x3": 89.17444696171663
+  },
+  "acceptance": {
+    "fp16_raw_planning": "diagnostic only",
+    "fp16_collision_optimized": "rejected",
+    "accuracy_reference": "TensorRT FP32",
+    "reduced_precision_collision_optimized": "accepted explicit INT8 QDQ graph with terminal occupancy FP16 protection, with residual occupancy parity limitation retained"
+  }
+}
