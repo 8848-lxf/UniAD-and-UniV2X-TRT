@@ -584,3 +584,23 @@ direct-output 修复的是逐层审计工具，不是正式 FP16 engine 精度�
 - 首次补测 builder `optimization_level=0` 的纯 FP16 engine；其 200 帧对 PyTorch occupancy IoU 只有 `90.116329%`，对 TRT FP32 为 `90.790114%`，共 `6,432` flips，raw/optimized planning 都为 `0.738535 m / 1.083333% box Col`。它比 level-3 标准 FP16 更差，排除 level-3 特定 tactic 是主因。
 - 所有实验继续使用 `modelopt_uniad_dl4agx`、Conda CUDA 11.8、TensorRT `10.9.0.34` 和 official profile `901/901/1150`；固定 1150 仅用于已验证等价的中间张量诊断，未替换正式动态协议。
 - 本轮修复并验证了可靠的逐层审计能力，但没有得到通过 200 帧门禁的 FP16 engine。故不启动新的 6018 帧长跑，不覆盖现有正式 FP16 表；FP32 仍是 accuracy reference，FP16 仍标记为 occupancy/Col 未验收。
+
+---
+
+## Iteration 020 - 2026-08-14T21:44:55-07:00 (PDT)
+
+### Dense decoder 根因边界复核
+
+- 新建 FP16/FP32 direct-output engine，在相同 200 帧、official-literal、固定 1150 诊断协议下导出 dense decoder 入口 `input.1743`。
+- `input.1743` shape 为 `1x256x13x13`，FP16/FP32 MAE mean `0.00648140`、relative RMSE mean `0.870129%`、cosine mean/min `0.999598/0.938283`。同引擎最终 occupancy IoU 为 `91.606570%`、`5,831` flips。
+- 与 `bev_embed` 的 relative RMSE `1.489651%` 和 decoder 输出 `future_states.3` 的 `3.259410%` 对照，入口误差没有放大；主要放大出现在 dense future decoder 内部，并随 horizon 从 MAE `0.033794` 增至 `0.054038`。
+
+### 真正覆盖 decoder 的 FP32 候选
+
+- 旧 `fp16_occ_shared96_fp32` 使用 `max_convolutions=0`；报告中的 Conv/Resize 只有 lineage 记录，`precision_constrained=false`，其 `90.393891%` IoU 不能代表 decoder 已被完整 FP32 化。
+- 修正候选以 `future_states.3` 为根、depth `48`、最多 `5` 层卷积并启用 layout precision，TensorRT 报告确认 `21` 个 Conv、相关 Resize/Shuffle 以及合计 `376` 个数值层实际为 FP32；严格 `OBEY_PRECISION_CONSTRAINTS` 构建成功，engine SHA256 为 `baffbef44575601b55a957828da3fc7d957c8c8111df5a6d9779288205a61af4`。
+- 该候选 200 帧对 PyTorch occupancy IoU 仅 `90.753124%`，对 TRT FP32 为 `91.448952%`，`5,934` flips；raw/optimized planning 均为 `0.738131 m / 1.083333% box Col`。model enqueue mean/p50/p99 为 `11.495/11.311/19.507 ms`。
+
+### 结论
+
+误差的可观测放大发生在 decoder，但强制该子图 FP32 会改变 TensorRT 融合边界并使 parity 退化，不能作为正式修复。至此已排除 profile、threshold、末端 Conv、插件、prev_bev/track 入口、builder level、decoder 不完整约束和 decoder 完整混合精度候选。没有新候选通过 200 帧门禁，不启动 6018 帧长跑；现有 FP16 全量结果与“未验收”标记保持不变。
