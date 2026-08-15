@@ -50,6 +50,7 @@
 #endif
 
 #define UNIAD_BEV_SIZE (UNIAD_BEV_H * UNIAD_BEV_W)
+#define UNIAD_AUDIT_MAX_ELEMENTS (5 * 256 * 52 * 52)
 
 namespace UniAD {
 
@@ -132,7 +133,8 @@ struct KernelParams {
     {"max_obj_id_out", {1}},
     {"outs_planning", {1, 6, 2}},
     {"seg_out", {1, 5, 1, UNIAD_BEV_H, UNIAD_BEV_W}},
-    {"seg_score_out", {1, 5, UNIAD_BEV_H, UNIAD_BEV_W}}
+    {"seg_score_out", {1, 5, UNIAD_BEV_H, UNIAD_BEV_W}},
+    {"audit_out", {UNIAD_AUDIT_MAX_ELEMENTS}}
   };
 };
 
@@ -234,6 +236,7 @@ struct KernelOutput {
   std::vector<float> outs_planning = std::vector<float>(1*6*2);
   std::vector<int32_t> seg_out = std::vector<int32_t>(1*5*1*UNIAD_BEV_H*UNIAD_BEV_W);
   std::vector<float> seg_score_out = std::vector<float>(1*5*UNIAD_BEV_H*UNIAD_BEV_W);
+  std::vector<float> audit_out = std::vector<float>(UNIAD_AUDIT_MAX_ELEMENTS);
 
   std::unordered_map<std::string, void*> data_ptrs = {
     {"prev_track_intances0_out", prev_track_intances0_out.data()},
@@ -259,7 +262,8 @@ struct KernelOutput {
     {"bev_embed", bev_embed.data()},
     {"outs_planning", outs_planning.data()},
     {"seg_out", seg_out.data()},
-    {"seg_score_out", seg_score_out.data()}
+    {"seg_score_out", seg_score_out.data()},
+    {"audit_out", audit_out.data()}
   };
   std::unordered_map<std::string, std::vector<TRT_INT_TYPE>> output_shapes;
   std::unordered_map<std::string, size_t> output_dsizes;

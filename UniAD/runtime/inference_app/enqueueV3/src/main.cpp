@@ -711,6 +711,30 @@ int main(int argc, char** argv) {
             return 2;
         }
     }
+    const char* dump_audit_output_env = std::getenv("UNIAD_DUMP_AUDIT_OUTPUT");
+    const bool dump_audit_output = dump_audit_output_env != nullptr
+        && std::string(dump_audit_output_env) != "0";
+    std::ofstream audit_output_dump;
+    std::vector<TRT_INT_TYPE> audit_output_shape;
+    if (dump_audit_output) {
+        audit_output_dump.open(output_pth + "/audit_out.float32", std::ios::binary);
+        if (!audit_output_dump) {
+            fprintf(stderr, "[ERROR] Could not create intermediate audit dump.\n");
+            return 2;
+        }
+    }
+    const char* dump_bev_embed_env = std::getenv("UNIAD_DUMP_BEV_EMBED");
+    const bool dump_bev_embed = dump_bev_embed_env != nullptr
+        && std::string(dump_bev_embed_env) != "0";
+    std::ofstream bev_embed_dump;
+    std::vector<TRT_INT_TYPE> bev_embed_shape;
+    if (dump_bev_embed) {
+        bev_embed_dump.open(output_pth + "/bev_embed.float32", std::ios::binary);
+        if (!bev_embed_dump) {
+            fprintf(stderr, "[ERROR] Could not create BEV embedding dump.\n");
+            return 2;
+        }
+    }
     const char* dump_images_env = std::getenv(
         "UNIAD_DUMP_PREPROCESSED_IMAGE_FRAMES");
     const int dump_image_frames = dump_images_env != nullptr
@@ -829,6 +853,47 @@ int main(int argc, char** argv) {
                 reinterpret_cast<const char*>(output->seg_score_out.data()),
                 score_count * sizeof(float));
         }
+        if (dump_audit_output) {
+            const auto shape_iter = output->output_shapes.find("audit_out");
+            if (shape_iter == output->output_shapes.end()) {
+                fprintf(stderr, "[ERROR] Engine does not expose audit_out.\n");
+                return 9;
+            }
+            const auto& frame_shape = shape_iter->second;
+            if (audit_output_shape.empty()) audit_output_shape = frame_shape;
+            if (frame_shape != audit_output_shape) {
+                fprintf(stderr, "[ERROR] audit_out shape changed at frame %d.\n", i);
+                return 9;
+            }
+            const std::size_t audit_count = std::accumulate(
+                frame_shape.begin(), frame_shape.end(), std::size_t{1},
+                std::multiplies<std::size_t>());
+            if (audit_count > output->audit_out.size()) {
+                fprintf(stderr, "[ERROR] audit_out exceeds host capacity at frame %d.\n", i);
+                return 9;
+            }
+            audit_output_dump.write(
+                reinterpret_cast<const char*>(output->audit_out.data()),
+                audit_count * sizeof(float));
+        }
+        if (dump_bev_embed) {
+            const auto& frame_shape = output->output_shapes.at("bev_embed");
+            if (bev_embed_shape.empty()) bev_embed_shape = frame_shape;
+            if (frame_shape != bev_embed_shape) {
+                fprintf(stderr, "[ERROR] bev_embed shape changed at frame %d.\n", i);
+                return 10;
+            }
+            const std::size_t bev_count = std::accumulate(
+                frame_shape.begin(), frame_shape.end(), std::size_t{1},
+                std::multiplies<std::size_t>());
+            if (bev_count != output->bev_embed.size()) {
+                fprintf(stderr, "[ERROR] Unexpected bev_embed size at frame %d.\n", i);
+                return 10;
+            }
+            bev_embed_dump.write(
+                reinterpret_cast<const char*>(output->bev_embed.data()),
+                bev_count * sizeof(float));
+        }
 
         const std::vector<std::pair<float, float>> raw_planning =
             decode_raw_planning_traj(*output);
@@ -916,6 +981,38 @@ int main(int argc, char** argv) {
             score_manifest << occupancy_score_shape[index];
         }
         score_manifest << "]\n}\n";
+    }
+    if (dump_audit_output) {
+        audit_output_dump.close();
+        std::ofstream audit_manifest(output_pth + "/audit_out.float32.manifest.json");
+        audit_manifest << "{\n"
+                       << "  \"schema_version\": 1,\n"
+                       << "  \"dtype\": \"float32\",\n"
+                       << "  \"temporal_protocol\": \""
+                       << json_escape(temporal_protocol) << "\",\n"
+                       << "  \"frames\": " << num_frames << ",\n"
+                       << "  \"shape_per_frame\": [";
+        for (std::size_t index = 0; index < audit_output_shape.size(); ++index) {
+            if (index) audit_manifest << ", ";
+            audit_manifest << audit_output_shape[index];
+        }
+        audit_manifest << "]\n}\n";
+    }
+    if (dump_bev_embed) {
+        bev_embed_dump.close();
+        std::ofstream bev_manifest(output_pth + "/bev_embed.float32.manifest.json");
+        bev_manifest << "{\n"
+                     << "  \"schema_version\": 1,\n"
+                     << "  \"dtype\": \"float32\",\n"
+                     << "  \"temporal_protocol\": \""
+                     << json_escape(temporal_protocol) << "\",\n"
+                     << "  \"frames\": " << num_frames << ",\n"
+                     << "  \"shape_per_frame\": [";
+        for (std::size_t index = 0; index < bev_embed_shape.size(); ++index) {
+            if (index) bev_manifest << ", ";
+            bev_manifest << bev_embed_shape[index];
+        }
+        bev_manifest << "]\n}\n";
     }
     if (dump_image_frames > 0) {
         preprocessed_image_dump.close();

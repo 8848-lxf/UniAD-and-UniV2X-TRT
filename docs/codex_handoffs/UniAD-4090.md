@@ -558,3 +558,29 @@ Detailed PDT timeline: `/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/docs/
 ### 当前验收状态
 
 direct-output 修复的是逐层审计工具，不是正式 FP16 engine 精度。所有 precision 候选仍未通过 200 帧门禁，因此未重复 6018 帧长跑；正式 FP16 occupancy/Col 仍未验收，现有 6018 帧结果保持不变。
+
+---
+
+## Iteration 019 - 2026-08-14T21:29:22-07:00 (PDT)
+
+### FP16 时序入口否证与中间特征二分
+
+- 仅将 11 个 `prev_track_intances*` 直接消费 Mul 保持 FP32 后，对 PyTorch occupancy IoU 为 `90.629807%`，对 TRT FP32 IoU 为 `91.314118%`，翻转栅格由标准 FP16 的 `5,676` 增至 `6,030`；raw planning 为 `0.738576 m / 1.083333% box Col`。该候选退化，排除 track 输入消费单点。
+- runtime 新增默认关闭的 `UNIAD_DUMP_BEV_EMBED` 和 `UNIAD_DUMP_AUDIT_OUTPUT`。Builder 的 direct alias 可将固定形状中间 tensor 命名为 `audit_out`；正式 engine 没有该输出且环境变量默认关闭，正式输出和时序协议不变。
+- 新增 `UniAD/repro/scripts/compare_tensor_audit.py`，严格校验 manifest、文件字节数、帧数、shape 和 temporal protocol，再报告逐帧 MAE/RMSE/relative RMSE/cosine。
+
+### FP16/FP32 中间张量结果
+
+| 边界 | 帧数 | shape/frame | MAE mean | relative RMSE mean | cosine mean/min |
+| --- | ---: | --- | ---: | ---: | ---: |
+| recurrent `bev_embed` | 200 | `2500x1x256` | `0.00621349` | `1.489651%` | `0.999335 / 0.908129` |
+| dense decoder `future_states.3` | 40 | `1x5x256x50x50` | `0.04092132` | `3.259410%` | `0.999070 / 0.986162` |
+
+- `future_states.3` 五个未来 horizon 的 MAE 为 `0.033794 / 0.035245 / 0.038626 / 0.042905 / 0.054038`，随时域单调放大。40 帧同引擎 FP16/FP32 occupancy IoU 为 `95.729326%`，共 `1,148` flips。
+- 该证据将根因边界从泛化的 shared temporal path 进一步收窄到 `bev_embed` 之后的 dense future feature/occupancy query 路径；末端 threshold、profile、prev_bev/track 入口和单个插件都已排除，但尚不能归因到唯一一个 TensorRT layer。
+
+### tactic A/B 与验收结论
+
+- 首次补测 builder `optimization_level=0` 的纯 FP16 engine；其 200 帧对 PyTorch occupancy IoU 只有 `90.116329%`，对 TRT FP32 为 `90.790114%`，共 `6,432` flips，raw/optimized planning 都为 `0.738535 m / 1.083333% box Col`。它比 level-3 标准 FP16 更差，排除 level-3 特定 tactic 是主因。
+- 所有实验继续使用 `modelopt_uniad_dl4agx`、Conda CUDA 11.8、TensorRT `10.9.0.34` 和 official profile `901/901/1150`；固定 1150 仅用于已验证等价的中间张量诊断，未替换正式动态协议。
+- 本轮修复并验证了可靠的逐层审计能力，但没有得到通过 200 帧门禁的 FP16 engine。故不启动新的 6018 帧长跑，不覆盖现有正式 FP16 表；FP32 仍是 accuracy reference，FP16 仍标记为 occupancy/Col 未验收。
