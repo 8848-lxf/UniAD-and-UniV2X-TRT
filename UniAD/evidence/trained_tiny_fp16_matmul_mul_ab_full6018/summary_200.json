@@ -1,0 +1,376 @@
+{
+  "experiment": "UniAD-tiny FP16 MatMul/Mul FP32 A/B",
+  "fixed_track_count": 1150,
+  "frames": 200,
+  "rows": {
+    "baseline": {
+      "build_constraint_counts": {},
+      "build_seconds": 312.09711081907153,
+      "collision_optimizer": {
+        "candidate_points": 10388,
+        "decode_calls": 200,
+        "enabled_calls": 200,
+        "frames_modified": 69,
+        "frames_with_candidates": 69,
+        "frames_with_positive_occupancy": 164,
+        "max_point_delta_m": 1.678774,
+        "points_modified": 269,
+        "positive_occupancy_cells": 66188
+      },
+      "delta_vs_baseline": {
+        "model_p50_percent": 0.0,
+        "occupancy_iou_percentage_points": 0.0,
+        "optimized_box_col_percentage_points": 0.0
+      },
+      "engine": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/fp16_matmul_mul_ab_20260815/engines/uniad_tiny_fp16_baseline.engine",
+      "engine_layer_audit": {
+        "MatMul": {
+          "engine_layers_with_onnx_metadata": 465,
+          "float_only_io_layers": 0,
+          "layers_with_half_io": 465,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        },
+        "Mul": {
+          "engine_layers_with_onnx_metadata": 192,
+          "float_only_io_layers": 1,
+          "layers_with_half_io": 182,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        }
+      },
+      "engine_sha256": "8da48f8defb43867740fa06256f5f0fad7da193bf08135c819542307589315dd",
+      "latency_ms": {
+        "e2e_mean": 68.724185,
+        "e2e_p50": 68.961593,
+        "e2e_p99": 77.433834,
+        "inference_mean": 16.572118,
+        "inference_p50": 16.388175,
+        "inference_p99": 24.735326,
+        "model_mean": 12.807026,
+        "model_p50": 12.704768,
+        "model_p99": 20.941198
+      },
+      "occupancy_vs_baseline": {
+        "byte_exact_frames": 200,
+        "flipped_cells": 0,
+        "iou_percent": 100.0
+      },
+      "occupancy_vs_pytorch": {
+        "byte_exact_frames": 36,
+        "iou_by_horizon_percent": [
+          91.18721849239398,
+          91.81093485787906,
+          91.1269760326364,
+          91.47894877983373,
+          89.9187969924812
+        ],
+        "iou_percent": 91.04587208800069,
+        "precision_percent": 95.53846618722427,
+        "recall_percent": 95.08879565720817,
+        "tensorrt_positive_cells": 66188
+      },
+      "optimized": {
+        "avg_l2_m": 0.7583823950071867,
+        "box_col_percent": 0.75
+      },
+      "raw": {
+        "avg_l2_m": 0.7371456185032973,
+        "box_col_percent": 1.1666666666666667,
+        "mean_point_l2_vs_pytorch_m": 0.026682620868086815,
+        "planning_mse_m2": 0.0459921695291996
+      },
+      "track_profile": {
+        "max": [
+          1150,
+          512
+        ],
+        "min": [
+          901,
+          512
+        ],
+        "opt": [
+          901,
+          512
+        ]
+      }
+    },
+    "matmul_fp32": {
+      "build_constraint_counts": {
+        "MatMul": 557
+      },
+      "build_seconds": 293.02929396927357,
+      "collision_optimizer": {
+        "candidate_points": 10287,
+        "decode_calls": 200,
+        "enabled_calls": 200,
+        "frames_modified": 67,
+        "frames_with_candidates": 67,
+        "frames_with_positive_occupancy": 163,
+        "max_point_delta_m": 1.684177,
+        "points_modified": 266,
+        "positive_occupancy_cells": 66430
+      },
+      "delta_vs_baseline": {
+        "model_p50_percent": 1.9908116385911168,
+        "occupancy_iou_percentage_points": 0.026557516288448824,
+        "optimized_box_col_percentage_points": 0.0
+      },
+      "engine": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/fp16_matmul_mul_ab_20260815/engines/uniad_tiny_fp16_matmul_fp32.engine",
+      "engine_layer_audit": {
+        "MatMul": {
+          "engine_layers_with_onnx_metadata": 541,
+          "float_only_io_layers": 29,
+          "layers_with_half_io": 512,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        },
+        "Mul": {
+          "engine_layers_with_onnx_metadata": 194,
+          "float_only_io_layers": 1,
+          "layers_with_half_io": 184,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        }
+      },
+      "engine_sha256": "288f7ca4e0a871262477400059db43c935a3cfb3a7d917886e690e26505ce0dc",
+      "latency_ms": {
+        "e2e_mean": 69.98512,
+        "e2e_p50": 69.776731,
+        "e2e_p99": 80.299632,
+        "inference_mean": 17.023295,
+        "inference_p50": 16.564054,
+        "inference_p99": 24.195584,
+        "model_mean": 13.394225,
+        "model_p50": 12.957696,
+        "model_p99": 20.587243
+      },
+      "occupancy_vs_baseline": {
+        "byte_exact_frames": 46,
+        "flipped_cells": 3286,
+        "iou_percent": 95.16423357664233
+      },
+      "occupancy_vs_pytorch": {
+        "byte_exact_frames": 37,
+        "iou_by_horizon_percent": [
+          91.42129826050063,
+          91.54185022026432,
+          91.26615362276753,
+          91.03309929789368,
+          90.3451605117065
+        ],
+        "iou_percent": 91.07242960428914,
+        "precision_percent": 95.378594008731,
+        "recall_percent": 95.27676275544728,
+        "tensorrt_positive_cells": 66430
+      },
+      "optimized": {
+        "avg_l2_m": 0.7594823274530548,
+        "box_col_percent": 0.75
+      },
+      "raw": {
+        "avg_l2_m": 0.7383304865605896,
+        "box_col_percent": 1.0833333333333333,
+        "mean_point_l2_vs_pytorch_m": 0.032262641936540604,
+        "planning_mse_m2": 0.04647167772054672
+      },
+      "track_profile": {
+        "max": [
+          1150,
+          512
+        ],
+        "min": [
+          901,
+          512
+        ],
+        "opt": [
+          901,
+          512
+        ]
+      }
+    },
+    "matmul_mul_fp32": {
+      "build_constraint_counts": {
+        "MatMul": 557,
+        "Mul": 269
+      },
+      "build_seconds": 288.60958427004516,
+      "collision_optimizer": {
+        "candidate_points": 10225,
+        "decode_calls": 200,
+        "enabled_calls": 200,
+        "frames_modified": 65,
+        "frames_with_candidates": 65,
+        "frames_with_positive_occupancy": 162,
+        "max_point_delta_m": 1.68593,
+        "points_modified": 264,
+        "positive_occupancy_cells": 67051
+      },
+      "delta_vs_baseline": {
+        "model_p50_percent": 2.502241678084949,
+        "occupancy_iou_percentage_points": -0.4478986328843746,
+        "optimized_box_col_percentage_points": 0.0
+      },
+      "engine": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/fp16_matmul_mul_ab_20260815/engines/uniad_tiny_fp16_matmul_mul_fp32.engine",
+      "engine_layer_audit": {
+        "MatMul": {
+          "engine_layers_with_onnx_metadata": 541,
+          "float_only_io_layers": 29,
+          "layers_with_half_io": 512,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        },
+        "Mul": {
+          "engine_layers_with_onnx_metadata": 192,
+          "float_only_io_layers": 1,
+          "layers_with_half_io": 182,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        }
+      },
+      "engine_sha256": "564d320f3bc9c8ce0e93ca1b275267bac867848891addd618aa0ee16cc3369e0",
+      "latency_ms": {
+        "e2e_mean": 70.37567,
+        "e2e_p50": 70.138825,
+        "e2e_p99": 81.131249,
+        "inference_mean": 17.290324,
+        "inference_p50": 16.728631,
+        "inference_p99": 24.749404,
+        "model_mean": 13.338109,
+        "model_p50": 13.022672,
+        "model_p99": 20.624946
+      },
+      "occupancy_vs_baseline": {
+        "byte_exact_frames": 45,
+        "flipped_cells": 4209,
+        "iou_percent": 93.87550200803213
+      },
+      "occupancy_vs_pytorch": {
+        "byte_exact_frames": 36,
+        "iou_by_horizon_percent": [
+          90.38235787355357,
+          90.60668461904008,
+          90.88349935036813,
+          90.94543274035578,
+          90.19513659561693
+        ],
+        "iou_percent": 90.59797345511632,
+        "precision_percent": 94.67718602257983,
+        "recall_percent": 95.46021864332867,
+        "tensorrt_positive_cells": 67051
+      },
+      "optimized": {
+        "avg_l2_m": 0.7592885791782464,
+        "box_col_percent": 0.75
+      },
+      "raw": {
+        "avg_l2_m": 0.7382456978775735,
+        "box_col_percent": 1.1666666666666667,
+        "mean_point_l2_vs_pytorch_m": 0.032788608223199844,
+        "planning_mse_m2": 0.046168725937604904
+      },
+      "track_profile": {
+        "max": [
+          1150,
+          512
+        ],
+        "min": [
+          901,
+          512
+        ],
+        "opt": [
+          901,
+          512
+        ]
+      }
+    },
+    "mul_fp32": {
+      "build_constraint_counts": {
+        "Mul": 269
+      },
+      "build_seconds": 278.8163522183895,
+      "collision_optimizer": {
+        "candidate_points": 10316,
+        "decode_calls": 200,
+        "enabled_calls": 200,
+        "frames_modified": 67,
+        "frames_with_candidates": 67,
+        "frames_with_positive_occupancy": 163,
+        "max_point_delta_m": 1.685596,
+        "points_modified": 267,
+        "positive_occupancy_cells": 66257
+      },
+      "delta_vs_baseline": {
+        "model_p50_percent": -4.727170145885385,
+        "occupancy_iou_percentage_points": -0.891752688436128,
+        "optimized_box_col_percentage_points": 0.0
+      },
+      "engine": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/fp16_matmul_mul_ab_20260815/engines/uniad_tiny_fp16_mul_fp32.engine",
+      "engine_layer_audit": {
+        "MatMul": {
+          "engine_layers_with_onnx_metadata": 452,
+          "float_only_io_layers": 0,
+          "layers_with_half_io": 452,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        },
+        "Mul": {
+          "engine_layers_with_onnx_metadata": 192,
+          "float_only_io_layers": 1,
+          "layers_with_half_io": 182,
+          "note": "Fused engine-layer I/O is an external audit; build-time OBEY constraints are authoritative for internal operator precision."
+        }
+      },
+      "engine_sha256": "7653e96fca0374bed6d833eaae7956285a3cde4b9754a3818797f9ed6a692062",
+      "latency_ms": {
+        "e2e_mean": 69.26677,
+        "e2e_p50": 69.449725,
+        "e2e_p99": 78.970266,
+        "inference_mean": 15.83226,
+        "inference_p50": 15.574543,
+        "inference_p99": 24.22731,
+        "model_mean": 12.273112,
+        "model_p50": 12.104192,
+        "model_p99": 20.72586
+      },
+      "occupancy_vs_baseline": {
+        "byte_exact_frames": 46,
+        "flipped_cells": 3603,
+        "iou_percent": 94.70333999764789
+      },
+      "occupancy_vs_pytorch": {
+        "byte_exact_frames": 35,
+        "iou_by_horizon_percent": [
+          90.05306156826413,
+          90.06048066210408,
+          90.32374882306077,
+          90.40592869541995,
+          89.92888138862102
+        ],
+        "iou_percent": 90.15411939956456,
+        "precision_percent": 94.99675505984273,
+        "recall_percent": 94.64820077893566,
+        "tensorrt_positive_cells": 66257
+      },
+      "optimized": {
+        "avg_l2_m": 0.7599092905443589,
+        "box_col_percent": 0.75
+      },
+      "raw": {
+        "avg_l2_m": 0.7388516198877672,
+        "box_col_percent": 1.0833333333333333,
+        "mean_point_l2_vs_pytorch_m": 0.03327115997672081,
+        "planning_mse_m2": 0.04627608135342598
+      },
+      "track_profile": {
+        "max": [
+          1150,
+          512
+        ],
+        "min": [
+          901,
+          512
+        ],
+        "opt": [
+          901,
+          512
+        ]
+      }
+    }
+  },
+  "schema_version": 1,
+  "temporal_protocol": "official_literal"
+}

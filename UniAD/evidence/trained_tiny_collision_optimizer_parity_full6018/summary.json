@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "timestamp_pdt": "2026-08-14T23:11:14-0700",
+  "frames": 6018,
+  "temporal_protocol": "official_literal",
+  "model": "UniAD-tiny stage-2 epoch-20 trained checkpoint",
+  "purpose": "Compare the locally added deployment BFGS post-process with the public UniAD CasADi/IPOPT CollisionNonlinearOptimizer and run a 3x3 raw-trajectory/occupancy cross-ablation.",
+  "public_code_contract": {
+    "python_config_use_col_optim": true,
+    "python_solver": "CasADi 3.5.6 with IPOPT",
+    "python_grid_coordinate_semantics": "torch.nonzero returns int64 and the public planning_head.py writes metric grid-center values back into that tensor, truncating toward zero",
+    "public_cpp_sample_collision_correction": "not implemented; README and post_process.hpp expose raw trajectory only"
+  },
+  "execution": {
+    "conda_environment": "torch112",
+    "workers": 8,
+    "optimizer_tasks": 54162,
+    "method_pair_frame_results": 162486,
+    "solver_failures": 0,
+    "generated_artifact_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/collision_optimizer_parity_20260814/full6018",
+    "generated_summary_sha256": "6e90b82772c0c675ab0c315ea5586a1f4193b0d47d5fcf3e38200cc38a2c036c",
+    "generated_cross_ablation_sha256": "d677758d6919da6f552a26747fceb7015389b531c1a042fb2538c6446be9ddaa"
+  },
+  "matched_results": {
+    "deployment_bfgs_float": {
+      "fp32": {"avg_l2_m": 0.7762880843, "box_col_percent": 0.2520217126, "candidate_points": 464970, "frames_modified": 2733},
+      "fp16": {"avg_l2_m": 0.8375435719, "box_col_percent": 0.4597319154, "candidate_points": 636074, "frames_modified": 3425},
+      "int8": {"avg_l2_m": 0.7847505538, "box_col_percent": 0.2630995901, "candidate_points": 513075, "frames_modified": 3047}
+    },
+    "ipopt_float_coordinates": {
+      "fp32": {"avg_l2_m": 0.7761842517, "box_col_percent": 0.2547911820, "candidate_points": 464970, "frames_modified": 2733},
+      "fp16": {"avg_l2_m": 0.8373801025, "box_col_percent": 0.4597319154, "candidate_points": 636074, "frames_modified": 3425},
+      "int8": {"avg_l2_m": 0.7846209480, "box_col_percent": 0.2658690595, "candidate_points": 513075, "frames_modified": 3047}
+    },
+    "public_python_ipopt_original_integer_coordinates": {
+      "fp32": {"avg_l2_m": 0.8273323649, "point_col_percent": 0.0166168162, "box_col_percent": 0.2298659577, "candidate_points": 595273, "frames_modified": 2896},
+      "fp16": {"avg_l2_m": 0.9133024990, "point_col_percent": 0.0526199180, "box_col_percent": 0.4375761604, "candidate_points": 754795, "frames_modified": 3561},
+      "int8": {"avg_l2_m": 0.8385475647, "point_col_percent": 0.0276946937, "box_col_percent": 0.2187880802, "candidate_points": 647590, "frames_modified": 3229}
+    }
+  },
+  "public_python_ipopt_box_col_cross_ablation_percent": {
+    "rows_are_raw_trajectory_columns_are_occupancy": ["fp32", "fp16", "int8"],
+    "fp32": [0.2298659577, 0.4348066910, 0.2160186108],
+    "fp16": [0.2270964883, 0.4375761604, 0.2132491415],
+    "int8": [0.2381743658, 0.4320372217, 0.2187880802]
+  },
+  "solver_only_box_col_difference_percent": {
+    "definition": "IPOPT with floating grid centers minus deployment BFGS with the same floating grid centers",
+    "fp32": 0.0027694694,
+    "fp16": 0.0,
+    "int8": 0.0027694694
+  },
+  "conclusion": "The custom BFGS solver is not the cause of the FP16 collision regression. Public-Python integer grid semantics change absolute metrics but FP16 remains anomalous. Holding raw trajectory fixed, FP16 occupancy produces about 0.432-0.438 percent box collision for every raw precision, while FP32 and INT8 occupancy produce about 0.213-0.238 percent. The regression is therefore localized to the collision-sensitive spatial distribution of FP16 occupancy, not global occupancy IoU or raw planning precision."
+}

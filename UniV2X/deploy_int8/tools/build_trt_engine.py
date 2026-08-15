@@ -333,6 +333,64 @@ def constrain_matching_layers_to_fp32(network, patterns):
     }
 
 
+def constrain_operator_kinds_to_fp32(network, operator_kinds):
+    requested = set(operator_kinds)
+    constrained = {}
+    skipped = {}
+    for index in range(network.num_layers):
+        layer = network.get_layer(index)
+        operator_kind = None
+        if (
+            "MatMul" in requested
+            and layer.type == trt.LayerType.MATRIX_MULTIPLY
+        ):
+            operator_kind = "MatMul"
+        elif (
+            "Mul" in requested
+            and layer.type == trt.LayerType.ELEMENTWISE
+            and re.search(r"(?:^|/)Mul(?:_|$)", layer.name)
+        ):
+            operator_kind = "Mul"
+        if operator_kind is None:
+            continue
+
+        float_outputs = []
+        for output_index in range(layer.num_outputs):
+            tensor = layer.get_output(output_index)
+            if tensor is None or tensor.dtype != trt.float32:
+                continue
+            layer.set_output_type(output_index, trt.float32)
+            float_outputs.append(tensor.name)
+        if not float_outputs:
+            skipped[layer.name] = {
+                "operator_kind": operator_kind,
+                "type": str(layer.type),
+                "reason": "no FP32 output",
+            }
+            continue
+        layer.precision = trt.float32
+        constrained[layer.name] = {
+            "operator_kind": operator_kind,
+            "type": str(layer.type),
+            "outputs": float_outputs,
+        }
+    return {
+        "requested_operator_kinds": sorted(requested),
+        "mul_match_contract": (
+            "TensorRT ELEMENTWISE layer with an ONNX-exported Mul_<id> name"
+        ),
+        "matched_counts": {
+            operator_kind: sum(
+                entry["operator_kind"] == operator_kind
+                for entry in constrained.values()
+            )
+            for operator_kind in sorted(requested)
+        },
+        "constrained_layers": constrained,
+        "skipped_layers": skipped,
+    }
+
+
 def constrain_exclusive_output_lineage_to_fp32(network, output_names):
     layers = [network.get_layer(index) for index in range(network.num_layers)]
     layers_by_name = {layer.name: layer for layer in layers}
@@ -619,6 +677,13 @@ def main():
     parser.add_argument("--stabilize-layernorm", action="store_true")
     parser.add_argument("--force-fp32-layer-regex", action="append", default=[])
     parser.add_argument(
+        "--force-fp32-operator",
+        action="append",
+        choices=("MatMul", "Mul"),
+        default=[],
+        help="Force every matching TensorRT numerical operator and its output to FP32.",
+    )
+    parser.add_argument(
         "--force-fp32-exclusive-output-lineage", action="append", default=[])
     parser.add_argument("--force-fp32-output-lineage", action="append", default=[])
     parser.add_argument("--force-fp32-tensor-lineage", action="append", default=[])
@@ -821,6 +886,22 @@ def main():
         )
         if not regex_constraints["constrained_layers"]:
             raise RuntimeError("No layers matched --force-fp32-layer-regex")
+    operator_kind_constraints = None
+    if args.force_fp32_operator:
+        operator_kind_constraints = constrain_operator_kinds_to_fp32(
+            network, args.force_fp32_operator
+        )
+        missing_operator_kinds = [
+            operator_kind
+            for operator_kind, count
+            in operator_kind_constraints["matched_counts"].items()
+            if count == 0
+        ]
+        if missing_operator_kinds:
+            raise RuntimeError(
+                "No TensorRT layers matched --force-fp32-operator values: %s"
+                % missing_operator_kinds
+            )
     exclusive_output_lineage_constraints = None
     if args.force_fp32_exclusive_output_lineage:
         exclusive_output_lineage_constraints = (
@@ -874,6 +955,7 @@ def main():
         inverse_sigmoid_constraints is not None
         or layernorm_constraints is not None
         or regex_constraints is not None
+        or operator_kind_constraints is not None
         or exclusive_output_lineage_constraints is not None
         or output_lineage_constraints is not None
         or tensor_lineage_constraints is not None
@@ -951,6 +1033,7 @@ def main():
         "inverse_sigmoid_constraints": inverse_sigmoid_constraints,
         "layernorm_constraints": layernorm_constraints,
         "regex_constraints": regex_constraints,
+        "operator_kind_constraints": operator_kind_constraints,
         "exclusive_output_lineage_constraints": (
             exclusive_output_lineage_constraints),
         "output_lineage_constraints": output_lineage_constraints,

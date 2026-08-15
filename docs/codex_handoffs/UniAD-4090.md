@@ -363,6 +363,38 @@ Detailed PDT timeline: `/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/docs/
 
 ---
 
+## Iteration 021 - 2026-08-14T23:11:14-07:00 (PDT)
+
+### Collision optimizer parity and 3x3 cross-ablation
+
+- Clarified why the deployment BFGS exists. NVIDIA's public Python tiny config sets `use_col_optim=True` and uses `CollisionNonlinearOptimizer` with CasADi/IPOPT, but the exported `forward_trt` returns raw planning and the public C++ README/sample explicitly leaves collision correction unimplemented. The local BFGS was added to fill that deployment gap; it is not an NVIDIA sample component.
+- Added `UniAD/repro/scripts/audit_collision_optimizer_parity.py`. It read the existing 6018-frame FP32/FP16/INT8 raw trajectories and packed occupancy outputs without modifying engines, checkpoints, datasets, or configured environments. It completed `54,162` raw/occupancy frame tasks and `162,486` method/pair/frame results with 8 CPU workers in the existing `torch112` environment; all CasADi/IPOPT solves succeeded.
+- Audited three distinct semantics: current floating-grid BFGS, public IPOPT with the same floating grid (solver-only control), and the literal public `planning_head.py` path. The literal path matters because `torch.nonzero()` returns `int64`, and assigning `(pixel-center)*0.5+0.25` back into that tensor truncates coordinates toward zero.
+
+| Matched post-process | FP32 avg. L2 / box Col | FP16 avg. L2 / box Col | INT8 avg. L2 / box Col |
+| --- | ---: | ---: | ---: |
+| deployment BFGS, float grid | `0.776288 / 0.252022%` | `0.837544 / 0.459732%` | `0.784751 / 0.263100%` |
+| IPOPT, same float grid | `0.776184 / 0.254791%` | `0.837380 / 0.459732%` | `0.784621 / 0.265869%` |
+| public Python literal, int grid + IPOPT | `0.827332 / 0.229866%` | `0.913302 / 0.437576%` | `0.838548 / 0.218788%` |
+
+- With identical floating coordinates, replacing BFGS by IPOPT changes box Col by only `+0.002769 / 0 / +0.002769` percentage points for FP32/FP16/INT8. The custom solver is therefore not the FP16 regression source. Rare non-convex local-solution outliers exist, but they do not explain aggregate Col.
+- The public-Python integer coordinate behavior changes absolute L2/Col and must be retained when claiming parity with `use_col_optim=True`; it still leaves FP16 far above FP32 and INT8.
+
+Public-Python IPOPT box Col cross-ablation, rows = raw trajectory and columns = occupancy:
+
+| Raw \ occupancy | FP32 occupancy | FP16 occupancy | INT8 occupancy |
+| --- | ---: | ---: | ---: |
+| FP32 raw | `0.229866%` | `0.434807%` | `0.216019%` |
+| FP16 raw | `0.227096%` | `0.437576%` | `0.213249%` |
+| INT8 raw | `0.238174%` | `0.432037%` | `0.218788%` |
+
+- Holding occupancy fixed makes raw precision almost irrelevant to collision. Holding raw fixed and selecting FP16 occupancy consistently raises box Col to `0.432-0.438%`; FP32/INT8 occupancy remain `0.213-0.238%`. This proves that global occupancy IoU is the wrong predictor: FP16 has `636,074` floating-grid candidates within 5 m of the raw path versus INT8 `513,075`, so its errors are more concentrated in the collision-sensitive corridor.
+- The accepted conclusion is narrower and stronger: the FP16 Col anomaly is caused by the spatial distribution of FP16 occupancy near the planned path. It is not caused by BFGS versus IPOPT, raw planning precision, global occupancy IoU, profile 1600, threshold, or the old temporal protocol. NVIDIA's exact TRT table post-processing remains unpublished, so the local result must state which of the three post-process semantics it uses.
+
+Compact evidence: `UniAD/evidence/trained_tiny_collision_optimizer_parity_full6018/summary.json`. Full resumable trajectories, statuses, and cross-ablation CSV are under `/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/collision_optimizer_parity_20260814/full6018`.
+
+---
+
 ## Iteration 011 - 2026-08-12T22:24:00-07:00
 
 - Re-checked `tools/prepare_calib_data.py` against the NVIDIA implementation. The retained semantics are unchanged: sequential validation traversal, per-scene temporal reset, recursive track/BEV/timestamp/ego-pose state, and cherry-pick only frames whose current `prev_track_intances0` count is exactly 901. The original implementation's per-loop `npz_data` overwrite/alias behavior is fixed; 6019 validation frames yielded 315 selected frames and 315 unique feed signatures.
@@ -604,3 +636,33 @@ direct-output 修复的是逐层审计工具，不是正式 FP16 engine 精度�
 ### 结论
 
 误差的可观测放大发生在 decoder，但强制该子图 FP32 会改变 TensorRT 融合边界并使 parity 退化，不能作为正式修复。至此已排除 profile、threshold、末端 Conv、插件、prev_bev/track 入口、builder level、decoder 不完整约束和 decoder 完整混合精度候选。没有新候选通过 200 帧门禁，不启动 6018 帧长跑；现有 FP16 全量结果与“未验收”标记保持不变。
+
+---
+
+## Iteration 021 - 2026-08-15T08:55:04-07:00 (PDT)
+
+### FP16 MatMul/Mul 同源 A/B
+
+- Builder 新增 `--force-fp32-operator MatMul|Mul`，使用 TensorRT layer type、FLOAT 输出门禁和严格 `OBEY_PRECISION_CONSTRAINTS`，不是名称列表传给 `trtexec` 的软提示。
+- 同一修复后 ONNX SHA256 `82d0aa5e...`、同一标准插件 SHA256 `14ea7801...`、TensorRT `10.9.0.34`、optimization level 3、TF32 关闭，构建 baseline / MatMul-FP32 / Mul-FP32 / MatMul+Mul-FP32 四组。
+- `MATRIX_MULTIPLY=557` 全部受保护，覆盖 MatMul 并保守包含 Gemm；ONNX 的 333 个 Mul 中 269 个 FLOAT Mul 全部受保护，剩余 49 INT64 + 15 INT32 为 shape/index 计算，不存在 FP16 量化。
+- 官方 `901/901/1150` profile 的四组均在第 1225 帧 fail-closed：baseline 输出 1153 tracks，其余输出 1152，超过 1150。没有截断时序状态；另建同源 `901/901/1600` 四组并以 fixed 1600 完成全量。
+
+完整 6018 帧、`official_literal`、同一输入和 collision optimizer：
+
+| Engine | FP32 约束 | occupancy IoU | raw L2 / Col | planning MSE | optimized L2 / Col | candidates / modified frames | model / inference / E2E p50 ms |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| FP16 baseline | 无 | `71.329463%` | `0.729232 / 0.545585%` | `0.0618751` | `0.837594 / 0.440346%` | `635282 / 3425` | `11.247 / 15.178 / 67.772` |
+| FP16 MatMul-FP32 | 557 MatrixMultiply | `71.337650%` | `0.728676 / 0.545585%` | `0.0624877` | `0.835565 / 0.429268%` | `631951 / 3417` | `13.324 / 17.228 / 70.473` |
+| FP16 Mul-FP32 | 269 FLOAT Mul | `71.257946%` | `0.728846 / 0.545585%` | `0.0623445` | `0.835578 / 0.437576%` | `633874 / 3414` | `12.116 / 16.065 / 69.276` |
+| FP16 MatMul+Mul-FP32 | 557 + 269 | `71.305393%` | `0.728650 / 0.548355%` | `0.0624150` | `0.835803 / 0.426498%` | `634138 / 3420` | `13.367 / 17.301 / 68.109` |
+
+相对 baseline，MatMul-only occupancy IoU 仅 `+0.00819` 个百分点，Mul-only `-0.07152`，联合 `-0.02407`；最佳 Col 改善也只有 `-0.01385` 个百分点，仍远高于已验收 INT8 的约 `0.2631%`。同时 raw planning MSE 没有改善，MatMul 保护使 model p50 增加约 `18.47%`。这些结果否定“普通 FP16 未排除 MatMul/Mul 是 Col 异常主因”，但不否定个别融合边界对少数栅格的影响。
+
+四组全量同时运行于 GPU 0--3；精度协议严格一致，延迟只用于本轮相对诊断，不替代串行正式延迟。TensorRT 的 LayerNorm FP16 warning 与既有 dense-future 误差放大证据仍然成立，下一步不应继续全局保护 MatMul/Mul。
+
+证据：
+
+- `UniAD/evidence/trained_tiny_fp16_matmul_mul_ab_full6018/summary_200.json`
+- `UniAD/evidence/trained_tiny_fp16_matmul_mul_ab_full6018/summary_6018.json`
+- 大文件：`/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/fp16_matmul_mul_ab_20260815_max1600`
