@@ -609,6 +609,7 @@ def main():
     parser.add_argument("--allow-tf32", action="store_true")
     parser.add_argument("--mark-output", action="append", default=[])
     parser.add_argument("--mark-output-alias", action="append", default=[])
+    parser.add_argument("--mark-output-direct-alias", action="append", default=[])
     parser.add_argument("--mark-debug", action="append", default=[])
     parser.add_argument("--outputs-only", action="store_true")
     parser.add_argument("--replace-map-position-layer")
@@ -730,10 +731,25 @@ def main():
                 "--mark-output-alias must use SOURCE=ALIAS: %s" % specification
             )
         output_aliases.append((source_name, alias))
+    direct_output_aliases = []
+    for specification in args.mark_output_direct_alias:
+        if "=" not in specification:
+            raise ValueError(
+                "--mark-output-direct-alias must use SOURCE=ALIAS: %s"
+                % specification
+            )
+        source_name, alias = specification.split("=", 1)
+        if not source_name or not alias:
+            raise ValueError(
+                "--mark-output-direct-alias must use SOURCE=ALIAS: %s"
+                % specification
+            )
+        direct_output_aliases.append((source_name, alias))
     requested_tensors = (
         args.mark_output
         + args.mark_debug
         + [source_name for source_name, _ in output_aliases]
+        + [source_name for source_name, _ in direct_output_aliases]
     )
     missing_debug_tensors = [name for name in requested_tensors if name not in tensors]
     if missing_debug_tensors:
@@ -767,6 +783,24 @@ def main():
         network.mark_output(output_tensor)
         marked_names.add(alias)
         output_alias_report.append({"source": source_name, "alias": alias})
+    direct_output_alias_report = []
+    for source_name, alias in direct_output_aliases:
+        if source_name in marked_names:
+            raise RuntimeError(
+                "Cannot directly alias an existing network output: %s"
+                % source_name
+            )
+        if alias in tensors or alias in marked_names:
+            raise RuntimeError("TensorRT tensor name already exists: %s" % alias)
+        tensor = tensors[source_name]
+        tensor.name = alias
+        network.mark_output(tensor)
+        marked_names.add(alias)
+        direct_output_alias_report.append({
+            "source": source_name,
+            "alias": alias,
+            "direct_network_output": True,
+        })
     for name in args.mark_debug:
         network.mark_debug(tensors[name])
 
@@ -910,6 +944,7 @@ def main():
         "tf32_enabled": args.allow_tf32,
         "marked_outputs": args.mark_output,
         "output_aliases": output_alias_report,
+        "direct_output_aliases": direct_output_alias_report,
         "marked_debug_tensors": args.mark_debug,
         "outputs_only": args.outputs_only,
         "map_position_replacement": map_position_replacement,

@@ -523,9 +523,38 @@ Detailed PDT timeline: `/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/docs/
 
 ### score dump 口径边界
 
-- `seg_score_out` alias 在 TensorRT layer audit 中被融合到 `ForeignNode[Cast_24264...Unsqueeze_24263]`，内部输出为 Half layout 后再 reformat 为 Float；当前 C++ wrapper 未暴露 TensorRT strides，按线性 `[1,5,50,50]` 读取该 debug alias 会出现与 `seg_out` 的空间顺序不一致。因此本轮不再用该 alias 做逐元素 occupancy 结论，正式门禁只使用 runtime 原生 `seg_out.packbits`。
+- `seg_score_out` alias 在 TensorRT layer audit 中被融合到 `ForeignNode[Cast_24264...Unsqueeze_24263]`，内部输出为 Half 后再 reformat 为 Float。TensorRT API 已确认该 binding 与 `seg_out` 都声明为 `LINEAR`；但 `score > 0.1` 与同一 engine 的最终 `seg_out` 只保持正栅格总数一致，空间位置不逐元素一致。因此问题不是 C++ wrapper 漏处理非线性 stride，而是 Myelin 中间 alias 的物化结果不能作为最终 `Greater` 的语义等价输出。本轮不再用该 alias 做逐元素 occupancy 结论，正式门禁只使用 runtime 原生 `seg_out.packbits`。
 - ONNX 图中实际阈值仍是 `Greater_24260(..., 0.1)`；现有阈值 sweep 和 6018 帧 score 审计已经证明全局阈值/形态学不是主因，不能通过调阈值伪造官方 Col。
 
 ### 结论
 
 本轮排除了 profile 上界、插件单点、末端 Conv、三个入口 Shuffle、阈值以及评估统计口径。剩余差异位于每帧共享 image/BEV feature producer 到 occupancy consumer 的 FP16 融合数值传播；在 TensorRT 10.9 中直接锁定插件或大范围 layout 会破坏构建，局部锁定又退化。FP16 当前仍未通过 occupancy/Col 验收，正式 accuracy reference 继续使用 FP32，不能把本轮实验称为“FP16 已修复”。
+
+---
+
+## Iteration 018 - 2026-08-14T21:01:37-07:00 (PDT)
+
+### 可靠 logits boundary
+
+- Builder 新增默认关闭的 `--mark-output-direct-alias SOURCE=ALIAS`。它直接重命名并标记原始中间 tensor 为 network output，不插入会被 Myelin 继续融合的 Identity。
+- FP16/FP32 direct-score engines 均使用官方 profile `901/901/1150`。两者在 200 帧中都满足 `seg_score_out > 0.1` 与各自 `seg_out` 的 `2,500,000/2,500,000` bit 完全一致，解决了旧 debug alias 不能逐元素解释的问题。
+- 有效 FP16 threshold sweep 的最佳阈值为 `0.107`，occupancy IoU 仅从 `91.149326%` 提高到 `91.188137%`，再次证明调阈值不能修复 Col。
+
+### FP16 与 FP32 有效 logits 对照
+
+| 指标 | 200 帧结果 |
+| --- | ---: |
+| FP16 vs FP32 occupancy IoU | `91.849044%` |
+| occupancy bit flips | `5,676` |
+| score MAE | `0.001581457` |
+| abs error p95 / p99 / p99.9 / max | `0.00042098 / 0.04099321 / 0.24271484 / 0.87691808` |
+| horizon flips 0.5--2.5 s | `958 / 992 / 1143 / 1221 / 1362` |
+| scene 首帧平均 flips | `1.0` |
+| 非 scene 首帧平均 flips | `29.2268` |
+
+- 关闭外部 temporal state 的诊断中，FP16/FP32 flips 从 `5,676` 降为 `749`，IoU 从 `91.849044%` 提高到 `95.263091%`，且五个 horizon flips 变为 `153/132/121/186/157`。这不是正式评估协议，但证明跨帧状态消费会放大 FP16 差异。
+- 保护 `prev_bev` 的七个入口层（`Reshape_1547 -> ... -> Mul_1934`）可构建，但对 PyTorch IoU 为 `91.057226%`、对 FP32 IoU 为 `91.854624%`、仍有 `5,659` flips，基本没有改善。误差不在入口 reshape/rotate 单点，而在更深的 shared temporal encoder/BEV feature 传播。
+
+### 当前验收状态
+
+direct-output 修复的是逐层审计工具，不是正式 FP16 engine 精度。所有 precision 候选仍未通过 200 帧门禁，因此未重复 6018 帧长跑；正式 FP16 occupancy/Col 仍未验收，现有 6018 帧结果保持不变。
