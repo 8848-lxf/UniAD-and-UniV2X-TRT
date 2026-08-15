@@ -497,3 +497,35 @@ Detailed PDT timeline: `/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/docs/
 - Imported the UniAD export/quantization/evaluation scripts, deployment model changes, enqueueV3 runtime source, and small audit reports.
 - Recorded the original-checkpoint PyTorch baseline, base engine smoke trend, active FP32 full evaluation, and remaining full-validation/CARLA work.
 - Excluded weights, ONNX graphs, engines, datasets, calibration tensors, timing caches, compiled libraries, and large generated outputs.
+
+---
+
+## Iteration 017 - 2026-08-14T15:29:17-07:00 (PDT)
+
+### FP16 occupancy/Col 继续排查
+
+- 所有新实验继续使用隔离的 `modelopt_uniad_dl4agx` 环境、Conda CUDA 11.8 工具链、TensorRT 10.9.0.34、当前 native TensorRT plugin 和 `official_literal` 时序协议；没有切换到系统 CUDA/G++，没有修改权重或数据集。
+- 200 帧标准 FP16 baseline（profile `901/901/1600`）仍是 occupancy IoU `91.5980%` 左右；已有 6018 帧正式候选的 occupancy IoU/优化后 box Col 为 `71.278528% / 0.459732%`。本轮没有将任何候选提升为正式全序列结果。
+
+### 新候选与结果
+
+| 候选 | 构建/评估状态 | 200 帧 occupancy IoU | raw avg. L2 | raw box Col |
+| --- | --- | ---: | ---: | ---: |
+| FP16 full output-lineage FP32（旧候选） | 可构建，已有结果 | `92.3829%` | `0.721249 m` | `1.166667%` |
+| FP16 full-lineage + PluginV2 FP32 | 构建失败 | - | - | - |
+| FP16 full-lineage + layout FP32 | 构建失败 | - | - | - |
+| FP16 仅 `Reshape_1957/1983/1997` FP32 | 可构建，但退化 | `90.3709%` | `0.738667 m` | `1.083333%` |
+| FP16 官方 profile `901/901/1150` | 可构建，200 帧复核 | `91.2459%` | `0.737405 m` | `1.166667%` |
+
+- `PluginV2.precision=FP32` 在 TensorRT 10.9 对 `MultiScaleDeformableAttnTRT_1998` 报 `No supported formats`，不能作为正式方案；强制大范围 Shuffle/Resize/Select precision 会触发 Myelin SSA/IR verifier 失败。两种失败都不是 OOM，也没有生成可用 engine。
+- 仅保护三个 transformer 输入 Shuffle 能构建但 IoU 和 L2 退化，说明共享 transformer 数值路径不能用局部入口锁定解决。
+- 将 profile 上界从 `1600` 改回官方 `1150` 没有改善，反而 200 帧 IoU 降至 `91.2459%`；因此 `1600` 只是早期固定容量诊断上界，不是 FP16 occupancy 根因。
+
+### score dump 口径边界
+
+- `seg_score_out` alias 在 TensorRT layer audit 中被融合到 `ForeignNode[Cast_24264...Unsqueeze_24263]`，内部输出为 Half layout 后再 reformat 为 Float；当前 C++ wrapper 未暴露 TensorRT strides，按线性 `[1,5,50,50]` 读取该 debug alias 会出现与 `seg_out` 的空间顺序不一致。因此本轮不再用该 alias 做逐元素 occupancy 结论，正式门禁只使用 runtime 原生 `seg_out.packbits`。
+- ONNX 图中实际阈值仍是 `Greater_24260(..., 0.1)`；现有阈值 sweep 和 6018 帧 score 审计已经证明全局阈值/形态学不是主因，不能通过调阈值伪造官方 Col。
+
+### 结论
+
+本轮排除了 profile 上界、插件单点、末端 Conv、三个入口 Shuffle、阈值以及评估统计口径。剩余差异位于每帧共享 image/BEV feature producer 到 occupancy consumer 的 FP16 融合数值传播；在 TensorRT 10.9 中直接锁定插件或大范围 layout 会破坏构建，局部锁定又退化。FP16 当前仍未通过 occupancy/Col 验收，正式 accuracy reference 继续使用 FP32，不能把本轮实验称为“FP16 已修复”。

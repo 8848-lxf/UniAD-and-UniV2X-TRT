@@ -279,6 +279,7 @@ def constrain_matching_layers_to_fp32(network, patterns):
         trt.LayerType.SLICE,
         trt.LayerType.SOFTMAX,
         trt.LayerType.UNARY,
+        trt.LayerType.SHUFFLE,
     }
     for index in range(network.num_layers):
         layer = network.get_layer(index)
@@ -432,6 +433,8 @@ def constrain_output_lineage_to_fp32(
     max_depth,
     max_convolutions=0,
     require_network_outputs=True,
+    force_plugin_precision=False,
+    force_layout_precision=False,
 ):
     producers = {}
     for index in range(network.num_layers):
@@ -454,6 +457,7 @@ def constrain_output_lineage_to_fp32(
 
     constrained = {}
     visited = set()
+    plugin_input_producers = {}
     stack = []
     for name in output_names:
         producer = producers.get(name)
@@ -480,6 +484,12 @@ def constrain_output_lineage_to_fp32(
     }
     if max_convolutions > 0:
         precision_types.add(trt.LayerType.CONVOLUTION)
+    if force_layout_precision:
+        precision_types.update({
+            trt.LayerType.SHUFFLE,
+            trt.LayerType.RESIZE,
+            trt.LayerType.SELECT,
+        })
     stop_types = {
         trt.LayerType.DEQUANTIZE,
         trt.LayerType.QUANTIZE,
@@ -515,8 +525,42 @@ def constrain_output_lineage_to_fp32(
             entry["minimum_depth"] = min(entry["minimum_depth"], depth)
             entry["minimum_convolution_depth"] = min(
                 entry["minimum_convolution_depth"], current_convolution_depth)
-            if layer.type in precision_types and layer.type != trt.LayerType.PLUGIN_V2:
+            should_constrain_precision = (
+                layer.type in precision_types
+                and (layer.type != trt.LayerType.PLUGIN_V2 or force_plugin_precision)
+            )
+            if should_constrain_precision:
                 layer.precision = trt.float32
+            if layer.type == trt.LayerType.PLUGIN_V2 and force_plugin_precision:
+                # A plugin can expose FP32 outputs while TensorRT still selects
+                # a half-precision implementation or half-precision input
+                # producer. Keep the numerical plugin boundary explicitly FP32.
+                input_entries = []
+                for input_index in range(layer.num_inputs):
+                    tensor = layer.get_input(input_index)
+                    if tensor is None or tensor.dtype != trt.float32:
+                        continue
+                    producer = producers.get(tensor.name)
+                    if producer is None:
+                        continue
+                    for output_index in range(producer.num_outputs):
+                        output = producer.get_output(output_index)
+                        if output is not None and output.name == tensor.name:
+                            producer.set_output_type(output_index, trt.float32)
+                            if producer.type in precision_types:
+                                producer.precision = trt.float32
+                            input_entries.append({
+                                "tensor": tensor.name,
+                                "layer": producer.name,
+                                "type": str(producer.type),
+                            })
+                            break
+                if input_entries:
+                    plugin_input_producers[layer.name] = input_entries
+                entry = constrained.get(layer.name)
+                if entry is not None:
+                    entry["plugin_precision_forced"] = True
+                    entry["input_producers"] = input_entries
         if (
             layer.type in stop_types
             or (is_convolution and current_convolution_depth >= max_convolutions)
@@ -539,6 +583,9 @@ def constrain_output_lineage_to_fp32(
         "max_depth": max_depth,
         "max_convolutions": max_convolutions,
         "require_network_outputs": require_network_outputs,
+        "force_plugin_precision": force_plugin_precision,
+        "force_layout_precision": force_layout_precision,
+        "plugin_input_producers": plugin_input_producers,
         "constrained_layers": constrained,
     }
 
@@ -576,6 +623,16 @@ def main():
     parser.add_argument("--force-fp32-tensor-lineage", action="append", default=[])
     parser.add_argument("--fp32-lineage-depth", type=int, default=12)
     parser.add_argument("--fp32-lineage-convolutions", type=int, default=0)
+    parser.add_argument(
+        "--force-fp32-plugin-output-lineage",
+        action="store_true",
+        help="Also force PluginV2 layers and their FP32 input producers in an output lineage.",
+    )
+    parser.add_argument(
+        "--force-fp32-layout-output-lineage",
+        action="store_true",
+        help="Also constrain Shuffle/Resize/Select layers in an output lineage.",
+    )
     parser.add_argument("--prefer-precision-constraints", action="store_true")
     args = parser.parse_args()
     if args.fp32_lineage_convolutions < 0:
@@ -748,6 +805,8 @@ def main():
             args.force_fp32_output_lineage,
             args.fp32_lineage_depth,
             args.fp32_lineage_convolutions,
+            force_plugin_precision=args.force_fp32_plugin_output_lineage,
+            force_layout_precision=args.force_fp32_layout_output_lineage,
         )
         if not output_lineage_constraints["constrained_layers"]:
             raise RuntimeError("No layers constrained by --force-fp32-output-lineage")
@@ -759,6 +818,8 @@ def main():
             args.fp32_lineage_depth,
             args.fp32_lineage_convolutions,
             require_network_outputs=False,
+            force_plugin_precision=args.force_fp32_plugin_output_lineage,
+            force_layout_precision=args.force_fp32_layout_output_lineage,
         )
         if not tensor_lineage_constraints["constrained_layers"]:
             raise RuntimeError("No layers constrained by --force-fp32-tensor-lineage")
@@ -860,6 +921,8 @@ def main():
         "output_lineage_constraints": output_lineage_constraints,
         "tensor_lineage_constraints": tensor_lineage_constraints,
         "prefer_precision_constraints": args.prefer_precision_constraints,
+        "force_fp32_plugin_output_lineage": args.force_fp32_plugin_output_lineage,
+        "force_fp32_layout_output_lineage": args.force_fp32_layout_output_lineage,
         "initial_timing_cache": initial_cache,
         "network_layers": int(network.num_layers),
         "inputs": [tensor_metadata(network.get_input(index)) for index in range(network.num_inputs)],
