@@ -666,3 +666,52 @@ direct-output 修复的是逐层审计工具，不是正式 FP16 engine 精度�
 - `UniAD/evidence/trained_tiny_fp16_matmul_mul_ab_full6018/summary_200.json`
 - `UniAD/evidence/trained_tiny_fp16_matmul_mul_ab_full6018/summary_6018.json`
 - 大文件：`/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/fp16_matmul_mul_ab_20260815_max1600`
+
+---
+
+## 2026-08-15T23:28:46-07:00 (PDT) - seg_out 反向逐层首个显著误差定位
+
+### 诊断协议
+
+- 使用同一修正版 ONNX、同一标准插件、TensorRT `10.9.0.34`，分别构建 FP32/FP16 direct-output engine。
+- 以同一批 40 帧记录输入逐个执行；关闭递归 temporal state 和 collision optimizer，使差异归因于 engine 数值路径，而不是两次运行的状态漂移。
+- 从 `seg_out` 反向追踪到 occupancy decoder、dense future decoder、layer0 cross-attention，再追到 tracking score/active-index 分支。由于中间张量存在输入相关的动态 shape，runtime 改为保存 manifest v2 的 `shapes_per_frame`，不再用单一 shape 拒绝合法输出。
+- 这是因果定位实验，不替代 official-literal 的 6018 帧递归验收。
+
+### 首个因果边界
+
+末端 occupancy `Mul`/`Sigmoid` 不是首个观测到的显著误差层。上游 tracking classification score 分支的 pre-Sigmoid tensor `onnx::Sigmoid_10611` 已出现全局 relative-RMSE `1.916788%`，最大绝对差 `5.026286`；经过 Sigmoid 的 `onnx::ReduceMax_10612` 为 `7.269288%`，随后固定容量的 `scores.1` 为 `4.713701%`。该分数随后参与 `0.35` 和 `0.4` 两个 active-index 条件。
+
+实测阈值翻转示例：
+
+| 帧 | 阈值 | index | FP32 | FP16 | 结果 |
+| ---: | ---: | ---: | ---: | ---: | --- |
+| 19 | 0.35 | 824 | 0.3400408 | 0.3544922 | 翻转 |
+| 19 | 0.40 | 681 | 0.4021551 | 0.3833008 | 翻转 |
+| 21 | 0.40 | 561 | 0.4013114 | 0.3937988 | 翻转 |
+| 28 | 0.40 | 396 | 0.4056823 | 0.3986816 | 翻转 |
+
+随后出现离散 shape 分叉：
+
+| 帧 | `track_scores` shape FP32 -> FP16 | 后续第一处可比大误差 |
+| ---: | --- | --- |
+| 19 | `[2] -> [1]` | cross-attention 输入长度改变 |
+| 21 | `[3] -> [2]` | `input.1791` cross residual RRMS `58.016%` |
+| 28 | `[2] -> [1]` | FFN hidden `input.1795` RRMS `32.187%` |
+
+这说明首个因果边界是“tracking score 的 FP16 数值差异 + 0.35/0.4 离散筛选”，而不是 occupancy decoder 末端。对齐 shape 的帧中，occupancy gate `onnx::Less_23765` 的 `0.3` mask 没有发生翻转，因此此前怀疑的 occupancy gate threshold 不是这批异常帧的起点。
+
+### 与 occupancy 路径的关系
+
+从 `future_states.3` 到 `seg_out` 的 coarse 结果仍可复核：`future_states.3` relative-RMSE `10.9351%`，occupancy einsum `onnx::Slice_26434` 为 `0.3733%`，末端 `onnx::Mul_26440` 为 `2.8282%`。这些是后续误差或低能量张量的相对统计，不应倒推为最早根因。此前全图保护 557 个 MatrixMultiply 和 269 个 FLOAT Mul 的 A/B 结果也没有恢复 FP16 Col，因此不能把普通 occupancy-head MatMul/Mul Half 计算单独认定为主因。
+
+这不表示 tracking score 分支内的 MatMul 已被排除；该分支本身包含 classification head MatMul/Gemm。当前已定位到第一个可观测连续边界是 `onnx::Sigmoid_10611`，下一步若继续修复，应只对 tracking classification score/active-index 分支做选择性 FP32 保护，并重新验证动态 track shape、occupancy 和 collision，而不是全局保护所有 MatMul/Mul。
+
+### 复核文件
+
+- 脚本：`UniAD/repro/scripts/run_fp16_seg_reverse_layer_audit.sh`
+- 汇总：`UniAD/repro/scripts/summarize_fp16_seg_reverse_layer_audit.py`
+- 轻量证据：`UniAD/evidence/trained_tiny_fp16_seg_reverse_layer_audit_20260815/summary.json`
+- 原始 40 帧报告：`/home/lixingfeng/uniad_trt_artifacts/fp16_seg_reverse_20260815*/summary_*_40.json`
+
+本轮没有覆盖正式 FP16 全量精度表，也没有宣称 FP16 已修复；结论是将异常从 occupancy 末端收窄到 tracking score 阈值分支，并证明 shape 分叉先于后续 occupancy/规划误差发生。

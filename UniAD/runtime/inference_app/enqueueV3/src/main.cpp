@@ -715,7 +715,7 @@ int main(int argc, char** argv) {
     const bool dump_audit_output = dump_audit_output_env != nullptr
         && std::string(dump_audit_output_env) != "0";
     std::ofstream audit_output_dump;
-    std::vector<TRT_INT_TYPE> audit_output_shape;
+    std::vector<std::vector<TRT_INT_TYPE>> audit_output_shapes;
     if (dump_audit_output) {
         audit_output_dump.open(output_pth + "/audit_out.float32", std::ios::binary);
         if (!audit_output_dump) {
@@ -860,11 +860,7 @@ int main(int argc, char** argv) {
                 return 9;
             }
             const auto& frame_shape = shape_iter->second;
-            if (audit_output_shape.empty()) audit_output_shape = frame_shape;
-            if (frame_shape != audit_output_shape) {
-                fprintf(stderr, "[ERROR] audit_out shape changed at frame %d.\n", i);
-                return 9;
-            }
+            audit_output_shapes.push_back(frame_shape);
             const std::size_t audit_count = std::accumulate(
                 frame_shape.begin(), frame_shape.end(), std::size_t{1},
                 std::multiplies<std::size_t>());
@@ -985,18 +981,43 @@ int main(int argc, char** argv) {
     if (dump_audit_output) {
         audit_output_dump.close();
         std::ofstream audit_manifest(output_pth + "/audit_out.float32.manifest.json");
+        const bool variable_shape = !audit_output_shapes.empty()
+            && std::any_of(
+                audit_output_shapes.begin() + 1,
+                audit_output_shapes.end(),
+                [&audit_output_shapes](const auto& shape) {
+                    return shape != audit_output_shapes.front();
+                });
         audit_manifest << "{\n"
-                       << "  \"schema_version\": 1,\n"
+                       << "  \"schema_version\": 2,\n"
                        << "  \"dtype\": \"float32\",\n"
                        << "  \"temporal_protocol\": \""
                        << json_escape(temporal_protocol) << "\",\n"
                        << "  \"frames\": " << num_frames << ",\n"
-                       << "  \"shape_per_frame\": [";
-        for (std::size_t index = 0; index < audit_output_shape.size(); ++index) {
-            if (index) audit_manifest << ", ";
-            audit_manifest << audit_output_shape[index];
+                       << "  \"variable_shape\": "
+                       << (variable_shape ? "true" : "false") << ",\n";
+        if (!variable_shape && !audit_output_shapes.empty()) {
+            audit_manifest << "  \"shape_per_frame\": [";
+            for (std::size_t index = 0;
+                 index < audit_output_shapes.front().size(); ++index) {
+                if (index) audit_manifest << ", ";
+                audit_manifest << audit_output_shapes.front()[index];
+            }
+            audit_manifest << "],\n";
         }
-        audit_manifest << "]\n}\n";
+        audit_manifest << "  \"shapes_per_frame\": [\n";
+        for (std::size_t frame = 0; frame < audit_output_shapes.size(); ++frame) {
+            audit_manifest << "    [";
+            for (std::size_t index = 0;
+                 index < audit_output_shapes[frame].size(); ++index) {
+                if (index) audit_manifest << ", ";
+                audit_manifest << audit_output_shapes[frame][index];
+            }
+            audit_manifest << "]";
+            if (frame + 1 != audit_output_shapes.size()) audit_manifest << ",";
+            audit_manifest << "\n";
+        }
+        audit_manifest << "  ]\n}\n";
     }
     if (dump_bev_embed) {
         bev_embed_dump.close();
