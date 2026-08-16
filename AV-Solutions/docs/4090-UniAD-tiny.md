@@ -723,3 +723,32 @@ direct-output 修复的是逐层审计工具，不是正式 FP16 engine 精度�
 上一轮“tracking classification head 内部 MatMul 尚未逐个保护”的说法不准确。上一轮 `matmul_fp32` A/B engine 的 557 个 TensorRT `MATRIX_MULTIPLY` 已全部强制为 FP32，明确包含 tracking classification head 的 `MatMul_4474`、`MatMul_4504`、`MatMul_7804`；269 个 FLOAT `Mul` 也包含 `Mul_4500`、`Mul_7800`。所以单独再次保护 tracking MatMul/Mul 没有新的验证价值。
 
 真正尚未隔离的是 score lineage 中的 `Div`、`Pow`、`Sub`、`Add`、`Relu`、`Sigmoid`、`ReduceMax` 和 TensorRT fusion 边界。后续若继续，应构建完整 tracking score lineage FP32 候选，或逐层保护这些非 MatMul 节点，不能把它描述为再次保护 tracking MatMul。
+
+## Iteration 024 - 2026-08-16T01:45:24-07:00 (PDT) - Unified output storage and base result audit
+
+### UniAD-tiny status
+
+- The trained epoch-20 tiny deployment record is complete in this document. The formal 6018-frame TensorRT 10.9 section above includes the PyTorch reference, FP32, ordinary FP16, and accepted terminal-occupancy-protected INT8 rows with raw/optimized `avg. L2`, box collision, occupancy validity, modified-frame counts, and model/forward/E2E mean-p50-p99 latency.
+- Tiny engines, ONNX graphs, calibration feeds, timing caches, frame predictions, and CARLA outputs are stored under `/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20` and are not duplicated in the project source tree.
+
+### UniAD-base full-validation result currently available
+
+The base graph uses `base_e2e.py`/`base_e2e_trt_p.py`, the base 200x200 planning grid, fixed track capacity 1150, TensorRT `10.9.0.34`, and the same isolated Conda CUDA 11.8 toolchain. All four rows completed 6018 finite frames. The INT8 row is explicitly preliminary: its entropy calibration used only 8 training feeds (`calib8`), not the official tiny calibration protocol.
+
+| Metric | PyTorch FP32 | TRT FP32 | TRT FP16 | TRT INT8(EQ)+FP16, calib8 |
+| --- | ---: | ---: | ---: | ---: |
+| frames | 6019 (6009 timed) | 6018 | 6018 | 6018 |
+| planning avg. L2 | 0.913059 m | 2.559613 m | 2.408856 m | 2.380163 m |
+| box Col | 0.066456% | 1.165947% | 1.024704% | 3.162734% |
+| planning point-L2 vs PyTorch | 0 | 3.144457 m | 2.966040 m | 2.722219 m |
+| forward mean / p50 / p99 | 517.867 / 470.277 / n/r ms | 215.580 / 214.395 / 233.181 ms | 137.403 / 135.917 / 162.725 ms | 126.623 / 125.679 / 143.087 ms |
+| E2E mean / p50 / p99 | 586.327 / 545.332 / n/r ms | 368.480 / 364.289 / 440.199 ms | 289.559 / 284.672 / 379.506 ms | 276.915 / 273.425 / 349.483 ms |
+
+`forward` is the synchronized TensorRT/PyTorch model call (`inference_call` for TensorRT); `p99` is unavailable for the historical PyTorch JSON because that runner stored only mean/p50/p95/max. The base engine runner currently emits planning and latency, not a complete detection/tracking/map NuScenes result object, so no base TRT mAP/AMOTA/NDS value is fabricated here. The base FP32 planning delta already exists before quantization; these rows are a completed runtime deployment audit, not an accuracy-parity acceptance.
+
+### Generated-artifact cleanup and canonical locations
+
+- Base generated outputs were moved to `/data/lxf/uniad_deployment_outputs/uniad_base_e2e`; the project path `uniad-trt/repro_20260806/artifacts/uniad_base_e2e` is now a symlink.
+- Superseded random-weight `official_dummy`, incompatible `smoke_base_hybrid`, and the old root tiny `onnx` generated trees were removed from the local DL4AGX deployment artifacts. Training checkpoints under `stage1`/`stage2` were retained because they are weights, not stale ONNX/engine outputs.
+- The old 30G UniV2X generated artifact tree under `UniV2X/deploy_int8_legacy_20260816/artifacts` was removed after verification that the accepted corrected outputs are already under `/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810`. `AV-Solutions/univ2x-trt/artifacts` now links directly there; the old source compatibility directory remains only as a small source tree.
+- No original `/data` dataset or checkpoint was modified. The canonical source root remains `/home/lixingfeng/UniAD_examine/DL4AGX`; generated model files are now kept on `/data` rather than consuming home storage.

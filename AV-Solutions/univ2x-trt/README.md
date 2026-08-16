@@ -11,6 +11,11 @@ UniV2X stage-2 checkpoint. Source datasets and checkpoints are consumed
 read-only from their existing locations. Generated ONNX, calibration, engine,
 evaluation, and latency artifacts live under `artifacts/`.
 
+The current artifact symlink resolves to
+`/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810`; generated
+files therefore stay on the data filesystem rather than consuming home
+storage.
+
 The deployment is split into infrastructure and ego-agent graphs because the
 original PyTorch model executes the infrastructure agent first and feeds its
 cooperative features into the ego agent. Framework and end-to-end latency are
