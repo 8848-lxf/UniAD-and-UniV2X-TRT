@@ -1,0 +1,30 @@
+# Generated deployment artifacts and engines
+artifacts/
+*.engine
+*.plan
+*.onnx
+*.onnx.data
+*.pth
+*.pt
+*.ckpt
+*.npz
+*.npy
+*.pkl
+*.pickle
+*.bin
+*.so
+*.so.*
+*.a
+*.o
+*.cache
+
+# Local builds and runtime state
+build/
+build_*/
+build_repro/
+build_univ2x_*/
+__pycache__/
+*.py[cod]
+logs/
+*.log
+*.tmp

@@ -1,0 +1,57 @@
+.vscode/
+__pycache__/
+# The experiments space can be used to keep things you
+# don't want to push up but want to use the build system 
+experiments/
+AV-Solutions/common/dependencies/cuOSD/*
+# Ignore macOS system files
+.DS_Store
+
+# Deployment handoff policy: keep source and small reports, never binaries,
+# checkpoints, datasets, generated evaluation trees, or local build state.
+**/artifacts/
+**/artifacts_*/
+**/build/
+**/build_*/
+**/cmake-build-*/
+**/output/
+**/outputs/
+**/work_dirs/
+**/test/
+**/tests/
+**/data/
+**/datasets/
+**/ckpts/
+**/*.engine
+**/*.plan
+**/*.pth
+**/*.pt
+**/*.ckpt
+**/*.onnx
+**/*.onnx.data
+**/*.npz
+**/*.npy
+**/*.pkl
+**/*.pickle
+**/*.bin
+**/*.so
+**/*.so.*
+**/*.a
+**/*.o
+**/*.cache
+**/__pycache__/
+**/*.py[cod]
+**/*.log
+**/*.pid
+
+# Nested local checkouts and deployment scratch are retained on disk but are
+# intentionally represented by the lightweight handoff scripts instead.
+AV-Solutions/uniad-trt/repro_20260806/UniAD_deploy/
+AV-Solutions/uniad-trt/repro_20260806/UniAD_train/
+AV-Solutions/uniad-trt/repro_20260806/upstream/
+AV-Solutions/uniad-trt/repro_20260806/package/
+AV-Solutions/univ2x-trt/artifacts
+AV-Solutions/vad-trt/repro_20260811
+AV-Solutions/vad-trt/export_eval/tmp
+AV-Solutions/vad-trt/plugins/build
+AV-Solutions/uniad-trt/UniAD_train/ckpts.data-original
