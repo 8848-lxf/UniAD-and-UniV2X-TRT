@@ -715,3 +715,19 @@ direct-output 修复的是逐层审计工具，不是正式 FP16 engine 精度�
 - 原始 40 帧报告：`/home/lixingfeng/uniad_trt_artifacts/fp16_seg_reverse_20260815*/summary_*_40.json`
 
 本轮没有覆盖正式 FP16 全量精度表，也没有宣称 FP16 已修复；结论是将异常从 occupancy 末端收窄到 tracking score 阈值分支，并证明 shape 分叉先于后续 occupancy/规划误差发生。
+
+---
+
+## 2026-08-16T00:42:08-07:00 (PDT) - MatMul 保护范围表述纠正
+
+上一轮“tracking classification head 内部 MatMul 尚未逐个保护，后续可单独保护”的表述不准确。复核 `matmul_fp32` A/B engine 的 `operator_kind_constraints` 后，557 个 TensorRT `MATRIX_MULTIPLY` 全部已经被强制为 FP32，其中明确包含 tracking classification head 的：
+
+- `MatMul_4474`
+- `MatMul_4504`
+- `MatMul_7804`
+
+269 个 FLOAT `ELEMENTWISE Mul` 也已经覆盖对应 tracking head 的 `Mul_4500`、`Mul_7800`。因此，单独再保护这些 tracking MatMul/Mul 没有新的因果信息，上一轮全局 A/B 已经证明它们不是恢复 FP16 Col 的有效修复。
+
+尚未隔离的是该 score lineage 中的非 MatMul 算子和融合边界，包括 `Div`、`Pow`、`Sub`、`Add`、`Relu`、`Sigmoid`、`ReduceMax` 以及它们之间的 TensorRT fusion。下一步若继续，只应构建“完整 tracking score lineage FP32”的候选，或者逐层保护上述非 MatMul 节点；不能把它描述为再次保护 tracking MatMul。
+
+对应 A/B 全量结果保持不变：MatMul-only occupancy IoU `71.337650%`，optimized Col `0.429268%`；baseline occupancy IoU `71.329463%`，optimized Col `0.440346%`。该小幅变化没有恢复到 INT8 的约 `0.2631%`。

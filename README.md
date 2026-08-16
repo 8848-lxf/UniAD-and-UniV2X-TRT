@@ -2,6 +2,15 @@
 
 This repository tracks the RTX 4090 reproduction work for UniAD and UniV2X ONNX export, explicit-QDQ quantization, TensorRT engine construction, full-validation evaluation, and CARLA integration.
 
+The canonical local deployment root is now `/home/lixingfeng/UniAD_examine/DL4AGX`:
+
+- `DL4AGX/AV-Solutions/uniad-trt` is the UniAD deployment chain.
+- `DL4AGX/AV-Solutions/vad-trt` is the VAD deployment chain.
+- `DL4AGX/AV-Solutions/univ2x-trt` is the UniV2X deployment chain.
+- `DL4AGX/AV-Solutions/docs` contains the three model handoff documents.
+
+The checked-in tree remains the lightweight remote handoff checkout. The local `UniV2X/deploy_int8` path is retained as a compatibility symlink to the canonical UniV2X directory; generated artifacts stay outside source-control.
+
 ## Repository layout
 
 - `UniAD/repro`: UniAD export, calibration, quantization, engine-build, and evaluation scripts plus the deployment-side model changes.
@@ -22,4 +31,3 @@ Active development branch: `feature/uniad-univ2x-trt-4090`.
 
 - [UniAD handoff](docs/codex_handoffs/UniAD-4090.md)
 - [UniV2X handoff](docs/codex_handoffs/UniV2X-4090.md)
-
