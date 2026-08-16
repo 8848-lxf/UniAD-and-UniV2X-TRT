@@ -1,0 +1,184 @@
+{
+  "calibration": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/calibration/calib_data_shape0_901.npz",
+  "fixed_provider_behavior": {
+    "feed_sha256": [
+      "229a7a90427bb8bedc759932b2ecec7467157d571ea0647514e78f8cc501c14a",
+      "3fee6d33860817db12bf58c5fb2b0cbe50c1aa98477561c45ff99b951e840726",
+      "6a4c40d892891ca9100d5a3262fe8e58539754d3bf48a0d7e00195982265efd3",
+      "4b3c604ab3af0bcb947521f81f090b888207c7250d5a6040421c75bff11e3ef7",
+      "ded0e66e05d7e3aec65cd20daee6cbbf35e9eff12fc701ca9d911406a7cce757",
+      "dd80444aef1cb438a2c3fa6a89ec5d9c4c520f74df6bd6608a0ae49dd6fac4d8",
+      "d91205ec3547d6bbcb775429a5c99003ec750455413c14372f6ccb33bdb45236",
+      "4818c862ddc7ae1b92c5521fd1e0f1e59d9d48319d0039086e2572b52e6a5ebc",
+      "1a185889046bad45237e46b0bab7e84ca2599df72545b2da43faa98ebbeb6ba4",
+      "bfcb4d5692ed150826d5bd515886ead5760bd499cf9cce2513af85aa47379a33",
+      "3bfa388b5f2a3990cf772fd19e50f7ccc30e14f2959be8e3f924dd81734a31cc",
+      "e532359fa4c58ccb611a4dd638943af58bbf4283c542abbfdf5e7e75d9e41761",
+      "c7c8d90005f8b7fcf7e4fb3cf6e80888d5e019dc43ecc79eae60a729ac9a4835",
+      "7ad5aae2b8dcf483977cd4b592d59818bb34ff8f1fbecdd83ac778d4781e6913",
+      "504058cf90fe172e0ef2628d31e1e32369575f7ebac5ce07e75bd507075bdcde",
+      "44af75c93b1226265a941eba7d626c1e77d734b914041b1b40cbd4dceea2e423",
+      "130a394f8c652d55baa4cd7e6ad88012e1679286b46adf2689809b1b98913178",
+      "3c7ee9a54fc9c1e04484acc4cfc600fc6bb3eededa5e8a9d01aa15e93159ae25",
+      "34f66511ce591fd7213ae1892c6a4262f0559bc1757cc549a8c7ee16d70efa75",
+      "08a10e62e8dfb772ecafe426379264d03ebd7f849afe4ef6385f29229d898e67",
+      "91091e7e23972c343314dd9aac4ed1331c4b41de8cd5950010c8e69a01be48a2",
+      "c2af93c07a9746f1d8a424166d329ea95bb70bd4370138f02f932040db858d11",
+      "ef9631f95c9c315b094d4ed7c9aca5261cd33e318dbf5f69fdf16d5333f4cd2e",
+      "55041d80d9c1ca3592d7027a7b866fd0c727adffc7fd41d2cb194aa4489c3c56",
+      "e7c8c11366c0b4276e2ac6b9e13e1f825ca312c3904483f9658f6b09a809fd01",
+      "5778b40fa193aaa70a988a088ef05a4248b3ebd0d334f8c90bc8db704658a509",
+      "94f4e754130295a170dbdf775c9495de1b8fa232cba57572d7380de8cdd1a2ff",
+      "2f20a966a812fee4cf4dbbf8e6cfac403a1c3e32cd1542bc0fc0cde279d096e3",
+      "9304b83560bac45e5ccced9e88cab2e76b3b82a0a35d1fd2574c37bf703fe7b9",
+      "15e6bbe98afeb50ffdc642cf875f3f11950aaa82c4bcddc8b75091b463949eac",
+      "21c16b0439b2debd561a4a66a91ec42e4ba20378a44b665f184e1c79201d27f2",
+      "64bc2ed88857b106619aad5df5ae1af1fe6905af87e76c5b81fc5aa5ab4d670c",
+      "99ec8a485d3c40c2c1a383098bfc420491fd69b7aaef3984052a65d82f06afac",
+      "7ebd5243056d4e2a6bc4114eeaa3ba00c52317191812c3e12cdb6c87b13fc1b2",
+      "9918f6d765c9cb265baa64cca87c93de894d5c8f3cbb8052ab2d2114f2a242f4",
+      "3ba36f9f6860274a85843644020c0308d682e2133f11a276d489c8e351e36540",
+      "dde1eee4a2c6d9aeb5ba687bbccc8617abb16f1da6b28f61be11b98248bfbcfa",
+      "a93d4b9f0f16a74c815291a909dac987334fab48e195df9381b7d3a3b8c4dd32",
+      "54d88771fbdfa3ab7d79009477bef316d39ab9b01e03c2bc63acbf8da826e19b",
+      "eaf0067920950b1ccf27826a24428a48426be28a0a96da0c324a9cd1e2e57dc0",
+      "59ac35f4fb29ce2871c4f4d8e61614d172eebd646e2c8518c662676ce53bb111",
+      "baaa1679494091b607b6c66dead3d6bcc92aa9ecc1eac6188da749f391242a6f",
+      "3f0a220f56511fada1184d6a8b0a7c090f17af8c29c667d474e7d8f1ebd4d0c8",
+      "93d7824bd723f0745d826454185ea2002a46a47f95ca9e45d27e61865472d28e",
+      "2c7821a38af72bed3c1d20a0dc7f98fdc7c1b5b6fde088dc269097b6727bdf60",
+      "4a104982cf17a108585a6530e1121b87effe4b237274f52ea5cdfe9bdfd1d59c",
+      "7c0de75b98da555b7acf98467bd0e5a17ccc00f6fdca49e25e75b37e4cf2ab0b",
+      "835be0f500f8539a6512af3c5f1775bca6eaafba059794ded876ce39105473f6",
+      "63b079469fed4b9ad679e7455b5ee542b8225f4fc5eb694a9e6b1ab3e3da18a0",
+      "8f02e36b7be8268b67861b0f6ebba13ef96000a1b2d6ffd414b7da19f0794f03",
+      "8d7d4f03e181658882f3f585a859b4ee06cbd672395648cd245d7d6310f32417",
+      "dcef033ec7e08f82b878f751bebb0c4f3c38c66ed00d50803af76ec286e5e5a2",
+      "82e1791d601ba2d4b10bd08eb3f6fbc8922ad8c62771b7aeaa50b3babbc43836",
+      "6b7f1b5e923b8bfb380e321d3c1bc7b88c2c181364106dc1c0cbb6f6498b67db",
+      "4d985f77af3083f9799e2e3edb3c39a500066153af91a3e563da10d37ea5f097",
+      "b8383f92f3829068e3bece86f81e7a627d78f869b79333e278cb7d081d2065fe",
+      "93af6d5f98910ea2b1137f4d0e49913a61e5282cbdc5a523f9c63a4df486cbca",
+      "009f2400852d17b60968b7505595dee0d5930619f5a07aeec3de0ba9c3e70748",
+      "2a7626ef580343e9672032ba9d0eb240a02b1820f3b82170323a8341ceb296f0",
+      "1e6a9b2a172ee3be2dba2cbc9bf26995f9a398ffe4c3a2705a6458ff32d0fc66",
+      "b61bbc3656d79f0cc1b3166694c789aaee1920f28247978ed720e93e9900aeb9",
+      "e1b68a2be0e797675df5ebc6040015c467c1594753aeb4f9422281180b9bca2a",
+      "aca1e66f7b6413f4d12997ec5ffce6592fb9144d0119cf9dd9ee7bc871cbd8b2",
+      "5126485bf42177968f851c231170f9a7aaa92ba8d6692e3d65463af78e56e083"
+    ],
+    "frames": 64,
+    "independent_dictionary_ids": 64,
+    "input_shapes": {
+      "command": [
+        1
+      ],
+      "img": [
+        1,
+        6,
+        3,
+        256,
+        416
+      ],
+      "img_metas_can_bus": [
+        18
+      ],
+      "img_metas_lidar2img": [
+        1,
+        6,
+        4,
+        4
+      ],
+      "l2g_r_mat": [
+        1,
+        3,
+        3
+      ],
+      "l2g_t": [
+        1,
+        3
+      ],
+      "max_obj_id": [
+        1
+      ],
+      "prev_bev": [
+        2500,
+        1,
+        256
+      ],
+      "prev_l2g_r_mat": [
+        1,
+        3,
+        3
+      ],
+      "prev_l2g_t": [
+        1,
+        3
+      ],
+      "prev_timestamp": [
+        1
+      ],
+      "prev_track_intances0": [
+        901,
+        512
+      ],
+      "prev_track_intances1": [
+        901,
+        3
+      ],
+      "prev_track_intances11": [
+        901,
+        4,
+        256
+      ],
+      "prev_track_intances12": [
+        901,
+        4
+      ],
+      "prev_track_intances13": [
+        901
+      ],
+      "prev_track_intances3": [
+        901
+      ],
+      "prev_track_intances4": [
+        901
+      ],
+      "prev_track_intances5": [
+        901
+      ],
+      "prev_track_intances6": [
+        901
+      ],
+      "prev_track_intances8": [
+        901
+      ],
+      "prev_track_intances9": [
+        901,
+        10
+      ],
+      "timestamp": [
+        1
+      ],
+      "use_prev_bev": [
+        1
+      ]
+    },
+    "provider_workaround": {
+      "applied": true,
+      "installed_modelopt_source_unchanged": true,
+      "reason": "ModelOpt 0.29.0 aliases fixed-shape calibration dictionaries"
+    },
+    "unique_feed_signatures": 64
+  },
+  "modelopt_0_29_0_upstream_behavior": {
+    "dictionary_ids": 1,
+    "effective_frame_index": 63,
+    "unique_feed_signatures": 1
+  },
+  "npz_frames": 64,
+  "npz_unique_frame_signatures": 64,
+  "onnx": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/onnx/uniad_tiny_imgx0.25_cp.repaired.onnx",
+  "schema_version": 1,
+  "verdict": "The NPZ contains distinct frames, but the upstream ModelOpt 0.29.0 provider repeats only the final frame. The repository-local provider preserves one independent feed per frame."
+}

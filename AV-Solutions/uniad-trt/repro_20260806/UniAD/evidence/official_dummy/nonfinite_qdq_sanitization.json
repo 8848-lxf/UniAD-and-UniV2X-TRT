@@ -1,0 +1,45 @@
+{
+  "bypassed_qdq_pairs": [
+    {
+      "consumers_reconnected": [
+        "Conv_1384",
+        "Add_1389"
+      ],
+      "dequantize_node": "input.287_DequantizeLinear",
+      "quantize_node": "input.287_QuantizeLinear",
+      "raw_tensor": "input.287",
+      "scale": "input.287_scale"
+    },
+    {
+      "consumers_reconnected": [
+        "Conv_1381"
+      ],
+      "dequantize_node": "onnx::Conv_3461_DequantizeLinear",
+      "quantize_node": "onnx::Conv_3461_QuantizeLinear",
+      "raw_tensor": "onnx::Conv_3461",
+      "scale": "onnx::Conv_3461_scale"
+    },
+    {
+      "consumers_reconnected": [
+        "MatMul_24196",
+        "Add_24279"
+      ],
+      "dequantize_node": "query.175_DequantizeLinear",
+      "quantize_node": "query.175_QuantizeLinear",
+      "raw_tensor": "query.175",
+      "scale": "query.175_scale"
+    }
+  ],
+  "input": "/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/official_dummy/onnx/uniad_tiny_dummy_int8_eq_dq_only.onnx",
+  "output": "/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/official_dummy/onnx/uniad_tiny_dummy_int8_eq_dq_only.sanitized.onnx",
+  "remaining_nonfinite_qdq_scales": [],
+  "removed_initializers": [
+    "input.287_scale",
+    "input.287_zero_point",
+    "onnx::Conv_3461_scale",
+    "onnx::Conv_3461_zero_point",
+    "query.175_scale",
+    "query.175_zero_point"
+  ],
+  "schema_version": 1
+}

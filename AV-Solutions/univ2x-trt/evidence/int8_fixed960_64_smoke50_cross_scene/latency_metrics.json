@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "framework": "TensorRT",
+  "precision": "int8_stable_fixed960_64_smoke50_cross_scene_strict",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "config": "/home/lixingfeng/UniAD_examine/UniV2X/projects/configs_e2e_univ2x/univ2x_coop_e2e.py",
+  "engines": {
+    "infrastructure": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/engines/infrastructure_runtime_int8_stable_fixed960.engine",
+      "sha256": "6f02d6ef5ed2bfc8f49d0466493b9e642aae9795227c685963894f419bb26e8c"
+    },
+    "ego": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/engines/ego_runtime_int8_stable_fixed960_64.engine",
+      "sha256": "eda90ed3aad905b0bc4fe57731878001ae8a70a91a3c177761b4b146313588ee"
+    },
+    "plugin": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/plugins_msda_fp32accum/build_univ2x_fp32accum/lib_uniad_plugins_trt10.9_x86_cu118.so",
+      "sha256": "d6228ee683eefa6894e3fa0af19cf339bbc9b4d3ff88bf6c04ce60919022eaa4"
+    }
+  },
+  "dataset_frames": 50,
+  "warmup_frames_excluded": 20,
+  "fixed_input_shapes": {
+    "track_count": 960,
+    "cooperative_track_count": 64,
+    "padding_semantics": "Temporal rows use the graph's -10000 invalid sentinel; cooperative rows use an out-of-range matched index and are excluded from fusion."
+  },
+  "runtime_fallbacks": {
+    "timestamp_identity_output_to_input_enabled": false,
+    "counts": {
+      "infrastructure": 0,
+      "ego": 0
+    },
+    "semantic_basis": "prev_timestamp_out is ONNX Identity(timestamp)",
+    "allowed_negative_inf_output_counts": {}
+  },
+  "runtime_output_buffers": {
+    "infrastructure": {
+      "buffer_slots": 2,
+      "static_allocations": 36,
+      "static_reuses": 864,
+      "dynamic_allocations": 56,
+      "dynamic_reuses": 1044,
+      "context_cache_capacity": 1,
+      "context_cache_resident": 1,
+      "context_cache_hits": 0,
+      "context_cache_misses": 0,
+      "context_cache_evictions": 0,
+      "shared_device_memory_bytes": 0
+    },
+    "ego": {
+      "buffer_slots": 2,
+      "static_allocations": 28,
+      "static_reuses": 672,
+      "dynamic_allocations": 72,
+      "dynamic_reuses": 1278,
+      "context_cache_capacity": 1,
+      "context_cache_resident": 1,
+      "context_cache_hits": 0,
+      "context_cache_misses": 0,
+      "context_cache_evictions": 0,
+      "shared_device_memory_bytes": 0
+    }
+  },
+  "definitions": {
+    "forward": "Infrastructure engine, cooperative host matching, and ego engine with CUDA synchronization",
+    "end_to_end": "Dataloader wait, forward, official occupancy/planning updates, result reconstruction, and planning postprocess"
+  },
+  "infrastructure_forward": {
+    "samples": 30,
+    "mean_ms": 119.6877491970857,
+    "p50_ms": 119.5740019902587,
+    "p99_ms": 125.11371836066246,
+    "min_ms": 115.12386985123158,
+    "max_ms": 125.17127208411694,
+    "fps_from_mean": 8.355073988009703
+  },
+  "ego_forward": {
+    "samples": 30,
+    "mean_ms": 88.47323525696993,
+    "p50_ms": 88.45878392457962,
+    "p99_ms": 92.7073136344552,
+    "min_ms": 85.21770872175694,
+    "max_ms": 93.0663961917162,
+    "fps_from_mean": 11.302853310331724
+  },
+  "forward": {
+    "samples": 30,
+    "mean_ms": 219.68276364107928,
+    "p50_ms": 219.46353185921907,
+    "p99_ms": 228.45313923433423,
+    "min_ms": 209.3781940639019,
+    "max_ms": 228.5785935819149,
+    "fps_from_mean": 4.5520184807662645
+  },
+  "end_to_end": {
+    "samples": 30,
+    "mean_ms": 2672.3308011889458,
+    "p50_ms": 1236.3270465284586,
+    "p99_ms": 8634.702073130757,
+    "min_ms": 287.0937082916498,
+    "max_ms": 8709.764683619142,
+    "fps_from_mean": 0.3742051693432154
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "scope": "Custom model-controlled Town03 diagnostic with a dense GlobalRoutePlanner route, blocked-vehicle termination, inference every 10 frames, and no traffic. This is not an official Bench2Drive leaderboard score.",
+  "route": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml",
+  "route_length_m": 1181.6670165191117,
+  "runs": {
+    "pytorch_fp32": {
+      "frames": 541,
+      "completion_reason": "blocked",
+      "progress_percent": 2.106601122078161,
+      "unique_collisions": 19,
+      "collision_callbacks": 399,
+      "lane_invasions": 6,
+      "mean_speed_mps": 1.0745076987183781,
+      "forward_mean_p50_p99_ms": [94.2590558487508, 93.88384316116571, 104.84710387885569],
+      "service_end_to_end_mean_p50_p99_ms": [258.5886808595172, 261.2169235944748, 276.8942025862634]
+    },
+    "tensorrt_fp32": {
+      "frames": 546,
+      "completion_reason": "blocked",
+      "progress_percent": 2.1973793760867144,
+      "unique_collisions": 20,
+      "collision_callbacks": 405,
+      "lane_invasions": 6,
+      "mean_speed_mps": 1.0774450919889447,
+      "forward_mean_p50_p99_ms": [24.11023855071377, 22.85513561218977, 35.91220039874315],
+      "service_end_to_end_mean_p50_p99_ms": [201.001630820058, 203.44724040478468, 288.7352050095796]
+    },
+    "tensorrt_fp16": {
+      "frames": 541,
+      "completion_reason": "blocked",
+      "progress_percent": 2.106601122078161,
+      "unique_collisions": 20,
+      "collision_callbacks": 403,
+      "lane_invasions": 6,
+      "mean_speed_mps": 1.0622201811726002,
+      "forward_mean_p50_p99_ms": [17.10125296894047, 15.550251118838787, 31.389771327376355],
+      "service_end_to_end_mean_p50_p99_ms": [188.2017346581927, 188.508752733469, 213.40652724727988]
+    },
+    "tensorrt_int8_eq_fp16": {
+      "frames": 571,
+      "completion_reason": "blocked",
+      "progress_percent": 2.3790592026305384,
+      "unique_collisions": 19,
+      "collision_callbacks": 400,
+      "lane_invasions": 6,
+      "mean_speed_mps": 1.1000842551628578,
+      "forward_mean_p50_p99_ms": [19.504273277625703, 16.299229115247726, 48.11553351581095],
+      "service_end_to_end_mean_p50_p99_ms": [199.39493701646202, 193.30852665007114, 254.60638120770452],
+      "calibration": "validation315 fixed independent-feed entropy calibration"
+    }
+  },
+  "latency_definition": "Steady state excludes the first model inference. Service end-to-end includes request NPZ loading, image preprocessing, recurrent-state update, output transfer, and JSON response.",
+  "trajectory_protocol": "Both the deployment-PyTorch and TensorRT CARLA services consumed raw outs_planning; these retained runs predate the occupancy-aware collision post-process fix.",
+  "available_route_asset_inventory": {
+    "v2xverse_42routes": 42,
+    "v2xverse_42scenarios_trigger_events": 4829,
+    "training_split_routes": 233,
+    "evaluation_routes": 105,
+    "additional_routes": 66,
+    "routes_executed_by_this_evidence": 1,
+    "scenario_events_spawned_by_this_evidence": 0
+  },
+  "driving_result_interpretation": "PyTorch and all three TensorRT precisions follow similar initial motion and stall in repeated contact at about 2.1 to 2.4 percent dense-route progress. The shared failure reflects the raw-trajectory protocol, the offline nuScenes-to-CARLA sensor/domain mismatch, and the custom controller rather than a reduced-precision-only failure. Route and scenario catalogues exist in the reused V2Xverse tree, but this custom runner bypasses Leaderboard/ScenarioRunner and its scoring protocol; route progress, unique collision groups, lane invasions, and latency are diagnostic metrics only.",
+  "raw_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/carla_closed_loop_corrected_20260812"
+}

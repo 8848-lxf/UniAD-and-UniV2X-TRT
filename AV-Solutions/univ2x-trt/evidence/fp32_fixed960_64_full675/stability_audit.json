@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "precision": "fp32_fixed960_64_full675",
+  "dataset_frames": 675,
+  "diagnostic_records": 675,
+  "nonfinite_records": 0,
+  "runtime_fallbacks": {
+    "infrastructure_timestamp": 0,
+    "ego_timestamp": 0
+  },
+  "fixed_input_shapes": {
+    "temporal_track_count": 960,
+    "cooperative_track_count": 64
+  },
+  "execution_contexts": {
+    "infrastructure": 1,
+    "ego": 1
+  },
+  "status": "passed"
+}

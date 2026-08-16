@@ -1,0 +1,9 @@
+{
+  "diagnostic_records": 675,
+  "nonfinite_values": 0,
+  "infrastructure_timestamp_fallbacks": 0,
+  "ego_timestamp_fallbacks": 0,
+  "fixed_track_count": 960,
+  "fixed_cooperative_track_count": 64,
+  "note": "NaN values in official per-class metric summaries for absent categories are evaluator-derived and are not non-finite engine outputs."
+}

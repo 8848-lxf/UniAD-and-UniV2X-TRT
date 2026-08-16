@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "onnx": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/quantization_corrected/stable/onnx/ego_int8_qdq_agent_stable.onnx",
+  "nodes": 33764,
+  "quantize_linear_nodes": 548,
+  "dequantize_linear_nodes": 765,
+  "int8_initializers": 982,
+  "weighted_operator_coverage": {
+    "Conv": {
+      "total_nodes": 165,
+      "int8_weight_nodes": 165,
+      "int8_weight_fraction": 1.0
+    },
+    "Gemm": {
+      "total_nodes": 61,
+      "int8_weight_nodes": 52,
+      "int8_weight_fraction": 0.8524590163934426
+    },
+    "MatMul": {
+      "total_nodes": 712,
+      "int8_weight_nodes": 0,
+      "int8_weight_fraction": 0.0
+    }
+  },
+  "int8_weight_consumer_types": {
+    "Conv": 165,
+    "Gemm": 52
+  },
+  "dequantize_output_consumer_types": {
+    "Conv": 330,
+    "Add": 319,
+    "Shape": 124,
+    "Gemm": 104,
+    "MatMul": 68,
+    "BatchNormalization": 26,
+    "ModulatedDeformableConv2dTRT": 26,
+    "Resize": 19,
+    "Mul": 18,
+    "MaxPool": 8,
+    "Pad": 7,
+    "Unsqueeze": 5,
+    "Concat": 1,
+    "Gather": 1,
+    "Reshape": 1
+  },
+  "quantize_input_producer_types": {
+    "Add": 172,
+    "Relu": 127,
+    "MatMul": 81,
+    "Reshape": 46,
+    "Conv": 26,
+    "ModulatedDeformableConv2dTRT": 26,
+    "Transpose": 18,
+    "Cast": 9,
+    "MaxPool": 8,
+    "Resize": 8,
+    "Pad": 7,
+    "Gather": 5,
+    "Gemm": 5,
+    "Slice": 5,
+    "Concat": 2,
+    "Unsqueeze": 2,
+    "GridSample": 1
+  },
+  "custom_domain_qdq_consumer_types": {
+    "trt.plugins::ModulatedDeformableConv2dTRT": 26
+  },
+  "interpretation": "INT8 weight coverage proves explicit quantized weights for listed operators. QDQ adjacency alone does not prove that TensorRT selected a native INT8 kernel for an elementwise, shape, or custom-plugin layer."
+}

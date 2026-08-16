@@ -1,0 +1,19 @@
+{
+  "schema_version": 2,
+  "engine_path": "/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/artifacts/uniad_base_e2e/engines/uniad_base_fp32.engine",
+  "plugin_path": "/home/lixingfeng/UniAD_examine/DL4AGX/AV-Solutions/uniad-trt/repro_20260806/package/uniad-trt/inference_app/enqueueV3/build_base/libuniad_plugin.so",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "tensorrt_compile_version": "10.9.0",
+  "frames": 6018,
+  "warmup_iterations": 10,
+  "visualization_enabled": false,
+  "fixed_track_input_count": 1150,
+  "definitions": {
+    "model_enqueue": "CUDA event around TensorRT enqueueV3 on the inference stream",
+    "inference_call": "Synchronized wall time for H2D, enqueueV3, DDS handling and D2H",
+    "end_to_end": "Wall time for metadata read, six-JPEG decode, GPU preprocessing, temporal-state update, inference call and output decoding; visualization and result-file writes excluded"
+  },
+  "model_enqueue": {"mean_ms": 185.944574, "p50_ms": 185.443329, "p95_ms": 189.017550, "p99_ms": 191.792630, "min_ms": 183.616226, "max_ms": 209.018814, "fps_from_mean": 5.377947},
+  "inference_call": {"mean_ms": 215.579799, "p50_ms": 214.395240, "p95_ms": 223.751242, "p99_ms": 233.180902, "min_ms": 210.068194, "max_ms": 266.888393, "fps_from_mean": 4.638654},
+  "end_to_end": {"mean_ms": 368.479867, "p50_ms": 364.288593, "p95_ms": 409.199573, "p99_ms": 440.198861, "min_ms": 333.655693, "max_ms": 625.900651, "fps_from_mean": 2.713852}
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "timestamp_pdt": "2026-08-12T22:24:00-07:00",
+  "engine": "uniad_tiny_int8_eq_fp16_static1600.engine",
+  "frames": 200,
+  "protocol": "same metadata_scene_reset inputs, UNIAD_COLLISION_OPTIMIZATION=1",
+  "casadi_runtime": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt107/runtime_build_tiny_casadi/uniad",
+  "bfgs_runtime": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/trt107/runtime_build_trt107_exact/uniad",
+  "casadi_metrics": {
+    "avg_l2_m": 0.7776316572714617,
+    "avg_box_collision_percent": 0.8333333333333334,
+    "planning_mse_m": 0.22921349108219147,
+    "planning_output_coordinate_mse_m2": 0.14925043284893036,
+    "e2e_mean_ms": 108.891
+  },
+  "bfgs_metrics": {
+    "avg_l2_m": 0.7776316573459674,
+    "avg_box_collision_percent": 0.8333333333333334,
+    "planning_mse_m": 0.22921349108219147,
+    "planning_output_coordinate_mse_m2": 0.14925043284893036
+  },
+  "trajectory_csv_max_abs_delta_m": 1.0e-7,
+  "trajectory_csv_mean_l2_delta_m": 3.4166666667042e-10,
+  "conclusion": "CasADi and deployment BFGS produce numerically identical planning outputs for this probe; optimizer choice is not the remaining official-parity gap. CasADi is retained only as an audit build because its host solve increases end-to-end latency."
+}

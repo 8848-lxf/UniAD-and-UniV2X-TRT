@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "precision": "TensorRT FP32 with TF32 disabled",
+  "frame_index": 0,
+  "comparison_tolerance": {
+    "rtol": 0.001,
+    "atol": 0.0001
+  },
+  "source_reports": {
+    "infrastructure": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/reports/infrastructure_runtime_fp32_frame0_compare.json",
+      "sha256": "90e70e97b51eb349e4a44035c51f9107ed10ff46227bb49845ceefb52491df25"
+    },
+    "ego": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/reports/ego_runtime_fp32_frame0_compare.json",
+      "sha256": "a5ad00e78859527b838dde4fb43e5856120acf8e02c1432374ba8058d57bf2b3"
+    }
+  },
+  "infrastructure": {
+    "det_labels_mismatch_count": 16,
+    "drivable_pred_mismatch_count": 164,
+    "det_bboxes_max_abs_error": 60.74944305419922,
+    "det_bboxes_mean_abs_error": 0.625201404094696,
+    "lane_reference_max_abs_error": 0.013586044311523438,
+    "lane_reference_mean_abs_error": 0.0009123529889620841
+  },
+  "ego": {
+    "det_labels_mismatch_count": 29,
+    "drivable_pred_mismatch_count": 427,
+    "det_bboxes_max_abs_error": 87.10018157958984,
+    "det_bboxes_mean_abs_error": 1.705011010169983,
+    "lane_outputs_classes_max_abs_error": 2.0673093795776367,
+    "lane_outputs_classes_mean_abs_error": 0.05974794924259186,
+    "lane_outputs_coords_max_abs_error": 0.30451729893684387,
+    "lane_outputs_coords_mean_abs_error": 0.0040301051922142506,
+    "lane_reference_max_abs_error": 1.2623326778411865,
+    "lane_reference_mean_abs_error": 0.04130961745977402,
+    "occupancy_sigmoid_allclose": true,
+    "occupancy_sigmoid_max_abs_error": 0.00000770343467593193,
+    "planning_allclose": true,
+    "planning_max_abs_error": 0.0018310546875,
+    "planning_mean_abs_error": 0.0005406282725743949
+  },
+  "conclusion": "FP32 conversion is close for frame-0 planning and occupancy outputs, but detection and map outputs already diverge before reduced-precision quantization."
+}

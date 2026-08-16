@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "tensorrt_version": "10.9.0.34",
+  "precision": "int8",
+  "infrastructure": {
+    "profile": {
+      "track_count": 960
+    },
+    "onnx_sha256": "3fab9e1c94bbc6d9dd95f2fd91faf9f651677901aebf157c7b75165a1223f3e0",
+    "engine_bytes": 300419516,
+    "engine_sha256": "6f02d6ef5ed2bfc8f49d0466493b9e642aae9795227c685963894f419bb26e8c",
+    "build_seconds": 380.89276203885674
+  },
+  "ego": {
+    "profile": {
+      "track_count": 960,
+      "cooperative_track_count": 64
+    },
+    "onnx_sha256": "86a6321427c5f7d2d40405c1ccbab5e9431df47eda4b76d46d352f5dc9b20222",
+    "engine_bytes": 290278316,
+    "engine_sha256": "eda90ed3aad905b0bc4fe57731878001ae8a70a91a3c177761b4b146313588ee",
+    "build_seconds": 403.6976783014834
+  },
+  "artifact_policy": "Engine, ONNX, timing-cache, and build-profile payloads are retained locally and excluded from Git."
+}

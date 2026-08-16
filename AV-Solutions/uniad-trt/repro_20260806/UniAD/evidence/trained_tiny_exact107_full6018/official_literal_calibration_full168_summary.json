@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "timestamp_pdt": "2026-08-13T08:19:03-07:00",
+  "checkpoint": {
+    "description": "trained UniAD-tiny stage-2 epoch 20",
+    "sha256": "88289ecdf2a7576a4c6bd1c0879d15ffba5b93fc22221872fef6196638d91484"
+  },
+  "calibration": {
+    "dataset_frames": 6019,
+    "dataset_scenes": 150,
+    "temporal_protocol": "official_literal",
+    "protocol": "Only global sample_id 0 initializes external track, BEV, timestamp, ego pose and max_obj_id. Scene changes carry prior external outputs and set use_prev_bev=0 for the model-internal reset.",
+    "shape_901_frames": 168,
+    "use_prev_bev_0_frames": 5,
+    "use_prev_bev_1_frames": 163,
+    "independent_feed_dictionaries": 168,
+    "unique_feed_signatures": 168,
+    "npz_sha256": "2a05213edca9ec4f73061a5198a26bcb5dacb208f2f08a10657933bf6dac6422",
+    "comparison_to_scene_reset_315": {
+      "intersection_frames": 160,
+      "official_literal_only_frames": 8,
+      "scene_reset_only_frames": 155
+    }
+  },
+  "quantization": {
+    "modelopt_version": "0.29.0",
+    "calibration_method": "entropy",
+    "calibration_eps": ["trt", "cuda:0", "cpu"],
+    "dq_only": true,
+    "excluded_weight_op_types": ["MatMul"],
+    "entropy_max_bins": 2048,
+    "entropy_rebinned_tensor_count": 12,
+    "entropy_histogram_mass_preserved": true,
+    "quantized_node_count": 460,
+    "quantized_type_counts": {
+      "Conv": 104,
+      "MaxPool": 8,
+      "Mul": 5,
+      "Add": 181,
+      "Gemm": 45,
+      "MatMul_activation_qdq": 71,
+      "Unsqueeze": 16,
+      "Transpose": 5,
+      "Shape": 9,
+      "Gather": 1,
+      "Resize": 15
+    },
+    "matmul_int8_weight_inputs": 0,
+    "onnx_sha256": "0546f04c5782c2e53adddf692135dbee013649760067ba27f44e651ff33b872f"
+  },
+  "engine": {
+    "tensorrt_version": "10.7.0",
+    "fixed_track_capacity": 1600,
+    "bytes": 157941548,
+    "sha256": "bfb376dada66a21f4ed5ae3db1875a8bb1a2288d106befb46c4545e1cfd1233d"
+  },
+  "evaluation_6018": {
+    "official_external_state_carry_enabled": true,
+    "carry_vs_scene_reset_trajectory_max_abs_delta_m": 0.0,
+    "raw": {
+      "avg_l2_m": 0.7640927695651945,
+      "avg_box_collision_percent": 0.6951368117868616,
+      "planning_mean_point_l2_vs_pytorch_m": 0.1817292869091034,
+      "planning_coordinate_mse_vs_pytorch_m2": 0.17715705931186676,
+      "model_enqueue_mean_p50_p99_ms": [11.640483, 11.748864, 13.390832],
+      "inference_call_mean_p50_p99_ms": [15.566536, 15.621592, 17.587180],
+      "end_to_end_mean_p50_p99_ms": [90.747332, 89.656129, 105.139130]
+    },
+    "collision_optimized": {
+      "avg_l2_m": 0.7640927695651945,
+      "avg_box_collision_percent": 0.6951368117868616,
+      "planning_mean_point_l2_vs_deployment_pytorch_m": 0.1817292869091034,
+      "model_enqueue_mean_p50_p99_ms": [11.599311, 11.752384, 13.122037],
+      "inference_call_mean_p50_p99_ms": [15.55505, 15.638558, 17.254059],
+      "end_to_end_mean_p50_p99_ms": [89.904068, 88.936849, 103.532422]
+    }
+  },
+  "nvidia_reference_int8": {
+    "avg_l2_m": 1.0029,
+    "avg_collision_percent": 0.27,
+    "planning_mean_point_l2_vs_pytorch_m": 0.0502
+  },
+  "verdict": "Official literal temporal calibration semantics were reproduced locally, but NVIDIA accuracy parity was not reproduced. The official-literal engine has slightly lower trajectory-to-PyTorch L2 than the scene-reset-315 engine, but materially worse collision accuracy."
+}

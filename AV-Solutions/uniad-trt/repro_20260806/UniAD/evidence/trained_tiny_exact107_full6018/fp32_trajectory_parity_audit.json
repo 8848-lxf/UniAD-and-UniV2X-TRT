@@ -1,0 +1,194 @@
+{
+  "definitions": {
+    "coordinate_mse_m2": "mean(dx^2 and dy^2) over all coordinates",
+    "mean_point_l2_m": "mean(sqrt(dx^2 + dy^2)) over frames and six points",
+    "mean_squared_point_l2_m2": "mean(dx^2 + dy^2) over frames and six points",
+    "square_of_mean_point_l2_m2": "mean_point_l2_m squared; not an MSE identity"
+  },
+  "frames": 6018,
+  "global": {
+    "by_horizon_mean_point_l2_m": [
+      0.0007281944765091808,
+      0.0015228655962927094,
+      0.0026117667475159265,
+      0.004026337934722259,
+      0.0058281638588014075,
+      0.007915438753157965
+    ],
+    "coordinate_mse_m2": 2.2954741691497747e-05,
+    "frame_mean_point_l2_m": {
+      "max": 0.04775528397896509,
+      "mean": 0.003772127894499908,
+      "p50": 0.0027510951198180204,
+      "p95": 0.010435439310595665,
+      "p99": 0.01975109509400462
+    },
+    "identity_check_mean_squared_point_l2_equals_2x_coordinate_mse": 1.0,
+    "mean_point_l2_m": 0.003772127894499908,
+    "mean_squared_point_l2_m2": 4.590948338299549e-05,
+    "square_of_mean_point_l2_m2": 1.4228948852464309e-05
+  },
+  "interpretation": "Calibration cannot change FP32 parity. A scene-boundary ratio near one argues against scene-reset protocol mismatch; increasing error by horizon is consistent with accumulated numerical differences.",
+  "scene_boundary": {
+    "first_frame_mean_point_l2_m": {
+      "max": 0.024163095699494253,
+      "mean": 0.004247846714785109,
+      "p50": 0.0032179523820845563,
+      "p95": 0.010169871554821982,
+      "p99": 0.017165885942000643
+    },
+    "first_frames": 150,
+    "first_to_non_first_mean_ratio": 1.1297562640409766,
+    "non_first_frame_mean_point_l2_m": {
+      "max": 0.04775528397896509,
+      "mean": 0.0037599673929588746,
+      "p50": 0.002731335389197651,
+      "p95": 0.010428712173115235,
+      "p99": 0.01979718317678833
+    }
+  },
+  "scene_count": 150,
+  "schema_version": 1,
+  "worst_frames": [
+    {
+      "frame": 5786,
+      "frame_max_point_l2_m": 0.1316700215139136,
+      "frame_mean_point_l2_m": 0.04775528397896509,
+      "scene_first": false,
+      "scene_token": "e8834785d9ff4783a5950281a4579943"
+    },
+    {
+      "frame": 4180,
+      "frame_max_point_l2_m": 0.11830307715179793,
+      "frame_mean_point_l2_m": 0.046920081126630986,
+      "scene_first": false,
+      "scene_token": "d01e7279da2649ef896dc42f6b9ee7ab"
+    },
+    {
+      "frame": 2758,
+      "frame_max_point_l2_m": 0.1041147824951677,
+      "frame_mean_point_l2_m": 0.04355152583450116,
+      "scene_first": false,
+      "scene_token": "54f56f80350b4c07af598ee87cf3886a"
+    },
+    {
+      "frame": 4861,
+      "frame_max_point_l2_m": 0.06504005706921787,
+      "frame_mean_point_l2_m": 0.04056637692465818,
+      "scene_first": false,
+      "scene_token": "c4df079d260241ff8015218e29b42ea7"
+    },
+    {
+      "frame": 2757,
+      "frame_max_point_l2_m": 0.09987311631797142,
+      "frame_mean_point_l2_m": 0.038944095763834286,
+      "scene_first": false,
+      "scene_token": "54f56f80350b4c07af598ee87cf3886a"
+    },
+    {
+      "frame": 6017,
+      "frame_max_point_l2_m": 0.08463503177378875,
+      "frame_mean_point_l2_m": 0.037718152156063424,
+      "scene_first": false,
+      "scene_token": "6498fce2f38645fc9bf9d4464b159230"
+    },
+    {
+      "frame": 2448,
+      "frame_max_point_l2_m": 0.08727762070483824,
+      "frame_mean_point_l2_m": 0.037198171697503585,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 2456,
+      "frame_max_point_l2_m": 0.08783349700216038,
+      "frame_mean_point_l2_m": 0.03577666909168112,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 2439,
+      "frame_max_point_l2_m": 0.08595904027523255,
+      "frame_mean_point_l2_m": 0.03465261655237245,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 2451,
+      "frame_max_point_l2_m": 0.0824084408971474,
+      "frame_mean_point_l2_m": 0.03338646723282171,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 3019,
+      "frame_max_point_l2_m": 0.0766642691117162,
+      "frame_mean_point_l2_m": 0.03268743429783388,
+      "scene_first": false,
+      "scene_token": "b789de07180846cc972118ee6d1fb027"
+    },
+    {
+      "frame": 2520,
+      "frame_max_point_l2_m": 0.07257711756276669,
+      "frame_mean_point_l2_m": 0.03019442614586854,
+      "scene_first": false,
+      "scene_token": "0e7ede02718341558414865d5c604745"
+    },
+    {
+      "frame": 2433,
+      "frame_max_point_l2_m": 0.0721316648820726,
+      "frame_mean_point_l2_m": 0.029871659098149584,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 3080,
+      "frame_max_point_l2_m": 0.06944047090992325,
+      "frame_mean_point_l2_m": 0.029839204632126002,
+      "scene_first": false,
+      "scene_token": "7210f928860043b5a7e0d3dd4b3e80ff"
+    },
+    {
+      "frame": 2436,
+      "frame_max_point_l2_m": 0.07143891310252944,
+      "frame_mean_point_l2_m": 0.02980799957960655,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 2447,
+      "frame_max_point_l2_m": 0.07327993181882626,
+      "frame_mean_point_l2_m": 0.02976005818370957,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 2452,
+      "frame_max_point_l2_m": 0.07943051331728868,
+      "frame_mean_point_l2_m": 0.02921793950438667,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 2458,
+      "frame_max_point_l2_m": 0.07346129470945593,
+      "frame_mean_point_l2_m": 0.028713553398983755,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 2454,
+      "frame_max_point_l2_m": 0.06824136728994595,
+      "frame_mean_point_l2_m": 0.02848472283302132,
+      "scene_first": false,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+    },
+    {
+      "frame": 5771,
+      "frame_max_point_l2_m": 0.07069900495312087,
+      "frame_mean_point_l2_m": 0.028381771289540284,
+      "scene_first": false,
+      "scene_token": "16be583c31a2403caa6c158bb55ae616"
+    }
+  ]
+}

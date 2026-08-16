@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "date": "2026-08-15",
+  "timezone": "PDT",
+  "model": "UniAD-tiny trained_epoch20",
+  "onnx": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/onnx/uniad_tiny_imgx0.25_cp.repaired_simp.onnx",
+  "tensorrt": "10.9.0.34",
+  "protocol": {
+    "frames": 40,
+    "inputs": "same recorded feeds for FP32 and FP16",
+    "temporal_state": "disabled for identical-input attribution",
+    "collision_optimization": false,
+    "fixed_track_capacity": 1150,
+    "note": "Diagnostic attribution only; not the official 6018-frame recursive acceptance run."
+  },
+  "first_causal_boundary": {
+    "branch": "tracking classification score -> active-index selection",
+    "continuous_tensor": "onnx::Sigmoid_10611 (pre-Sigmoid tracking logits)",
+    "global_relative_rmse_percent": 1.9167882891574248,
+    "max_abs": 5.026286244392395,
+    "post_sigmoid_tensor": "onnx::ReduceMax_10612",
+    "post_sigmoid_global_relative_rmse_percent": 7.2692879797952745,
+    "scores1_global_relative_rmse_percent": 4.713701387158594,
+    "thresholds": [0.35, 0.4],
+    "threshold_flip_frames": [19, 21, 22, 28, 34, 36],
+    "primary_shape_divergence_frames": [19, 21, 28],
+    "primary_shape_divergence": {
+      "frame_19": "track_scores FP32 [2] vs FP16 [1]; cross-attention length subsequently differs",
+      "frame_21": "track_scores FP32 [3] vs FP16 [2]; first comparable post-selection cross residual RRMS 58.016%",
+      "frame_28": "track_scores FP32 [2] vs FP16 [1]; later FFN hidden RRMS 32.187%"
+    }
+  },
+  "threshold_examples": {
+    "frame_19": {
+      "threshold_0.35": {"index": 824, "fp32": 0.3400408, "fp16": 0.3544922, "flipped": true},
+      "threshold_0.4": {"index": 681, "fp32": 0.4021551, "fp16": 0.3833008, "flipped": true}
+    },
+    "frame_21": {
+      "threshold_0.4": {"index": 561, "fp32": 0.4013114, "fp16": 0.3937988, "flipped": true}
+    },
+    "frame_28": {
+      "threshold_0.4": {"index": 396, "fp32": 0.4056823, "fp16": 0.3986816, "flipped": true}
+    }
+  },
+  "reverse_lineage": {
+    "layer0_output": {"tensor": "input.1807", "relative_rmse_percent": 7.8330},
+    "layer1_output": {"tensor": "input.1883", "relative_rmse_percent": 17.1189},
+    "future_states_crop": {"tensor": "future_states.3", "relative_rmse_percent": 10.9351},
+    "occupancy_einsum": {"tensor": "onnx::Slice_26434", "relative_rmse_percent": 0.3733},
+    "occupancy_sigmoid": {"tensor": "onnx::Mul_26440", "relative_rmse_percent": 2.8282},
+    "gate_score": {"tensor": "onnx::Less_23765", "mask_threshold": 0.3, "aligned_mask_flips": 0},
+    "conclusion": "The terminal occupancy decoder is not the first observed causal boundary. Input-dependent score thresholding changes the active-track count before cross-attention and occupancy decoding."
+  },
+  "artifacts": {
+    "coarse_summary": "/home/lixingfeng/uniad_trt_artifacts/fp16_seg_reverse_20260815/summary_coarse_40.json",
+    "layer0_summary": "/home/lixingfeng/uniad_trt_artifacts/fp16_seg_reverse_20260815_layer0/summary_layer0_40.json",
+    "upstream_summary": "/home/lixingfeng/uniad_trt_artifacts/fp16_seg_reverse_20260815_upstream/summary_upstream_40.json"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "calibration_frames": 315,
+  "tensor_count": 543,
+  "raw_maximum_bins": 507826,
+  "raw_top_bin_counts": [507826, 455458, 220736, 192804, 48084, 47060],
+  "nonfinite_tensor_count": 0,
+  "accepted_maximum_bins": 2048,
+  "rebinned_tensor_count": 14,
+  "histogram_mass_preserved": true,
+  "method": "symmetric zero padding followed by exact contiguous-bin summation before the unchanged ONNX Runtime entropy/KL threshold search",
+  "pathological_attempt": {
+    "status": "terminated after diagnostic proof",
+    "wall_time_hours": 3.6,
+    "reason": "ONNX Runtime entropy threshold search is approximately quadratic in dynamically expanded histogram bin count"
+  },
+  "accepted_quantization_wall_time_minutes": 22.7,
+  "raw_evidence_root": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/calibration_validation_fixed"
+}

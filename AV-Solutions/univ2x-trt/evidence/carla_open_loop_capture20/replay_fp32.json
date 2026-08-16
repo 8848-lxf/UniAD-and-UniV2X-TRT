@@ -1,0 +1,1335 @@
+{
+  "schema": "univ2x_carla_open_loop_replay_v1",
+  "precision": "FP32",
+  "scope": "CARLA-domain synchronized open-loop replay; detection center matching and planning consistency are diagnostic and are not SPD benchmark metrics",
+  "capture": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/carla/capture20_20260809T191711-0700",
+  "frames": 20,
+  "warmup_frames_excluded": 2,
+  "fixed_input_shapes": {
+    "track_count": 960,
+    "cooperative_track_count": 64,
+    "padding_semantics": "Temporal rows use the graph's -10000 invalid sentinel; cooperative rows use an out-of-range matched index."
+  },
+  "runtime_fallbacks": {
+    "timestamp_identity_output_to_input_enabled": false,
+    "counts": {
+      "infrastructure": 0,
+      "ego": 0
+    }
+  },
+  "engines": {
+    "infrastructure": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/engines/infrastructure_runtime_fp32.engine",
+      "sha256": "91bb57fcc2693ac9df2ea84db4611338d4c6d8ec0c0cde4f2c24a9bc6ba190da"
+    },
+    "ego": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/engines/ego_runtime_fp32.engine",
+      "sha256": "385cb961f1877de82aebfa1c0232858074fea42f78d9687d1ea5e9804c395314"
+    },
+    "plugin": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/plugins_msda_fp32accum/build_univ2x_fp32accum/lib_uniad_plugins_trt10.9_x86_cu118.so",
+      "sha256": "d6228ee683eefa6894e3fa0af19cf339bbc9b4d3ff88bf6c04ce60919022eaa4"
+    }
+  },
+  "latency": {
+    "infrastructure_forward": {
+      "samples": 18,
+      "mean_ms": 177.5845866650343,
+      "p50_ms": 176.6164069995284,
+      "p99_ms": 184.98563796281815
+    },
+    "ego_forward": {
+      "samples": 18,
+      "mean_ms": 171.82707527859344,
+      "p50_ms": 171.79580219089985,
+      "p99_ms": 178.72824845835567
+    },
+    "forward": {
+      "samples": 18,
+      "mean_ms": 359.2869677684373,
+      "p50_ms": 359.4393292441964,
+      "p99_ms": 370.2385205589235
+    },
+    "end_to_end": {
+      "samples": 18,
+      "mean_ms": 509.01452710645066,
+      "p50_ms": 509.5392381772399,
+      "p99_ms": 547.0358600094914
+    }
+  },
+  "detection_center_match": {
+    "score_threshold": 0.1,
+    "match_distance_m": 2.0,
+    "predictions": 370,
+    "ground_truth": 29,
+    "matches": 1,
+    "precision": 0.002702702702702703,
+    "recall": 0.034482758620689655
+  },
+  "planning_l2_to_carla_autopilot_by_horizon_m": [
+    2.032535590574258,
+    3.8956381004457654,
+    5.679804342533622,
+    7.271796289790565,
+    8.746574878337286,
+    10.06723149283921,
+    11.49676574833403,
+    12.900114813251705,
+    14.152419351717377,
+    15.225721730207592
+  ],
+  "carla_events": {
+    "collision": 0,
+    "lane_invasion": 0
+  },
+  "runtime_output_buffers": {
+    "infrastructure": {
+      "buffer_slots": 2,
+      "static_allocations": 36,
+      "static_reuses": 324,
+      "dynamic_allocations": 55,
+      "dynamic_reuses": 385,
+      "context_cache_capacity": 1,
+      "context_cache_resident": 1,
+      "context_cache_hits": 0,
+      "context_cache_misses": 0,
+      "context_cache_evictions": 0,
+      "shared_device_memory_bytes": 0
+    },
+    "ego": {
+      "buffer_slots": 2,
+      "static_allocations": 28,
+      "static_reuses": 252,
+      "dynamic_allocations": 74,
+      "dynamic_reuses": 466,
+      "context_cache_capacity": 1,
+      "context_cache_resident": 1,
+      "context_cache_hits": 0,
+      "context_cache_misses": 0,
+      "context_cache_evictions": 0,
+      "shared_device_memory_bytes": 0
+    }
+  },
+  "frames_detail": [
+    {
+      "frame": 0,
+      "infrastructure_forward_ms": 4898.276340216398,
+      "ego_forward_ms": 5329.725380986929,
+      "forward_ms": 10247.201630845666,
+      "end_to_end_ms": 10414.967849850655,
+      "prediction_count": 34,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          2.7526962757110596,
+          0.0011984854936599731
+        ],
+        [
+          5.432511329650879,
+          0.08488249778747559
+        ],
+        [
+          8.42190933227539,
+          0.13146929442882538
+        ],
+        [
+          11.400164604187012,
+          0.1673738956451416
+        ],
+        [
+          14.490860939025879,
+          0.31257718801498413
+        ],
+        [
+          17.680049896240234,
+          0.54140305519104
+        ],
+        [
+          20.966020584106445,
+          0.8301705121994019
+        ],
+        [
+          24.04473876953125,
+          0.9542450904846191
+        ],
+        [
+          27.04023551940918,
+          1.2184748649597168
+        ],
+        [
+          29.86789321899414,
+          1.4523165225982666
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 1,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 1,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 1,
+      "infrastructure_forward_ms": 187.85360269248486,
+      "ego_forward_ms": 173.74423518776894,
+      "forward_ms": 371.7900924384594,
+      "end_to_end_ms": 516.5133941918612,
+      "prediction_count": 13,
+      "ground_truth_count": 1,
+      "matched_count": 1,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          3.2478718757629395,
+          0.022700205445289612
+        ],
+        [
+          6.424312591552734,
+          0.10329151153564453
+        ],
+        [
+          9.915590286254883,
+          0.11697541177272797
+        ],
+        [
+          13.333246231079102,
+          0.12885025143623352
+        ],
+        [
+          16.914207458496094,
+          0.26176464557647705
+        ],
+        [
+          20.470516204833984,
+          0.43037599325180054
+        ],
+        [
+          24.25442886352539,
+          0.7064183950424194
+        ],
+        [
+          27.89192008972168,
+          0.7737836241722107
+        ],
+        [
+          31.369874954223633,
+          0.9064681529998779
+        ],
+        [
+          34.74034118652344,
+          1.0446423292160034
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 1,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 1,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 2,
+      "infrastructure_forward_ms": 175.54433643817902,
+      "ego_forward_ms": 169.114263728261,
+      "forward_ms": 354.179123416543,
+      "end_to_end_ms": 485.07680371403694,
+      "prediction_count": 5,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          2.790785551071167,
+          0.018311813473701477
+        ],
+        [
+          5.558008670806885,
+          0.07741843163967133
+        ],
+        [
+          8.753925323486328,
+          0.03968045487999916
+        ],
+        [
+          11.863851547241211,
+          0.031322162598371506
+        ],
+        [
+          15.256183624267578,
+          0.08723264187574387
+        ],
+        [
+          18.666906356811523,
+          0.2112613320350647
+        ],
+        [
+          22.33238983154297,
+          0.4785745143890381
+        ],
+        [
+          25.81315803527832,
+          0.48048344254493713
+        ],
+        [
+          29.118667602539062,
+          0.5692169666290283
+        ],
+        [
+          32.29240036010742,
+          0.6464606523513794
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 1,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 1,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 3,
+      "infrastructure_forward_ms": 182.36584775149822,
+      "ego_forward_ms": 169.0842006355524,
+      "forward_ms": 360.22322438657284,
+      "end_to_end_ms": 514.242947101593,
+      "prediction_count": 3,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.119493007659912,
+          0.028201043605804443
+        ],
+        [
+          8.207788467407227,
+          0.07728719711303711
+        ],
+        [
+          12.37896728515625,
+          0.08392360806465149
+        ],
+        [
+          16.448041915893555,
+          0.06504694372415543
+        ],
+        [
+          20.47222328186035,
+          0.11010420322418213
+        ],
+        [
+          24.33064079284668,
+          0.19713693857192993
+        ],
+        [
+          28.32740592956543,
+          0.32004988193511963
+        ],
+        [
+          32.303340911865234,
+          0.2852000594139099
+        ],
+        [
+          36.127193450927734,
+          0.23861494660377502
+        ],
+        [
+          39.93293762207031,
+          0.1714264154434204
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 1,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 1,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 4,
+      "infrastructure_forward_ms": 178.23609337210655,
+      "ego_forward_ms": 173.9056520164013,
+      "forward_ms": 363.89547772705555,
+      "end_to_end_ms": 504.31087985634804,
+      "prediction_count": 14,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.303751468658447,
+          0.011902809143066406
+        ],
+        [
+          8.562163352966309,
+          0.07175780832767487
+        ],
+        [
+          12.89661979675293,
+          0.11554205417633057
+        ],
+        [
+          17.14456558227539,
+          0.10924280434846878
+        ],
+        [
+          21.294111251831055,
+          0.19795867800712585
+        ],
+        [
+          25.295902252197266,
+          0.32638004422187805
+        ],
+        [
+          29.396825790405273,
+          0.49475789070129395
+        ],
+        [
+          33.52206802368164,
+          0.5106198191642761
+        ],
+        [
+          37.48906707763672,
+          0.5498835444450378
+        ],
+        [
+          41.43277359008789,
+          0.5536746978759766
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 2,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 2,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 5,
+      "infrastructure_forward_ms": 179.93572913110256,
+      "ego_forward_ms": 166.61685705184937,
+      "forward_ms": 357.7851504087448,
+      "end_to_end_ms": 483.77278447151184,
+      "prediction_count": 34,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.291661262512207,
+          0.004719763994216919
+        ],
+        [
+          8.530104637145996,
+          0.05887078866362572
+        ],
+        [
+          12.858867645263672,
+          0.08240312337875366
+        ],
+        [
+          17.097576141357422,
+          0.06003982573747635
+        ],
+        [
+          21.254779815673828,
+          0.13088780641555786
+        ],
+        [
+          25.24974250793457,
+          0.23611819744110107
+        ],
+        [
+          29.359134674072266,
+          0.37266969680786133
+        ],
+        [
+          33.49308395385742,
+          0.3461373448371887
+        ],
+        [
+          37.47348403930664,
+          0.3283202052116394
+        ],
+        [
+          41.4329948425293,
+          0.28301018476486206
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 1,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 1,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 6,
+      "infrastructure_forward_ms": 185.31924486160278,
+      "ego_forward_ms": 175.78827030956745,
+      "forward_ms": 370.2540975064039,
+      "end_to_end_ms": 547.5702006369829,
+      "prediction_count": 7,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.332677364349365,
+          0.008345156908035278
+        ],
+        [
+          8.62363052368164,
+          0.05430645868182182
+        ],
+        [
+          12.888089179992676,
+          0.07884521037340164
+        ],
+        [
+          17.051666259765625,
+          0.05781836807727814
+        ],
+        [
+          21.060400009155273,
+          0.06255359947681427
+        ],
+        [
+          24.87883949279785,
+          0.13311299681663513
+        ],
+        [
+          28.757524490356445,
+          0.20757874846458435
+        ],
+        [
+          32.63121032714844,
+          0.14863426983356476
+        ],
+        [
+          36.40082550048828,
+          0.07246717065572739
+        ],
+        [
+          40.177223205566406,
+          -0.04547766596078873
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 1,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 1,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 7,
+      "infrastructure_forward_ms": 174.53345097601414,
+      "ego_forward_ms": 173.3965389430523,
+      "forward_ms": 362.03756742179394,
+      "end_to_end_ms": 487.95649968087673,
+      "prediction_count": 21,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.357802867889404,
+          0.003102123737335205
+        ],
+        [
+          8.647804260253906,
+          0.08293911814689636
+        ],
+        [
+          12.82097053527832,
+          0.15434981882572174
+        ],
+        [
+          16.921825408935547,
+          0.1665140986442566
+        ],
+        [
+          20.795246124267578,
+          0.2156338393688202
+        ],
+        [
+          24.5196533203125,
+          0.35112932324409485
+        ],
+        [
+          28.22113800048828,
+          0.48815619945526123
+        ],
+        [
+          31.89311408996582,
+          0.5461905598640442
+        ],
+        [
+          35.496517181396484,
+          0.6223291158676147
+        ],
+        [
+          39.101646423339844,
+          0.6412304639816284
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 3,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 3,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 8,
+      "infrastructure_forward_ms": 170.49621604382992,
+      "ego_forward_ms": 169.0486390143633,
+      "forward_ms": 348.63167628645897,
+      "end_to_end_ms": 485.63094809651375,
+      "prediction_count": 24,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.333782196044922,
+          0.004171490669250488
+        ],
+        [
+          8.612554550170898,
+          0.06291607022285461
+        ],
+        [
+          12.917098999023438,
+          0.08981437981128693
+        ],
+        [
+          17.12875747680664,
+          0.07117357105016708
+        ],
+        [
+          21.21949577331543,
+          0.11386261880397797
+        ],
+        [
+          25.14055633544922,
+          0.2141878604888916
+        ],
+        [
+          29.134872436523438,
+          0.33535876870155334
+        ],
+        [
+          33.13251876831055,
+          0.3147076964378357
+        ],
+        [
+          37.01163864135742,
+          0.29983147978782654
+        ],
+        [
+          40.87565994262695,
+          0.24663367867469788
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 3,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 3,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 9,
+      "infrastructure_forward_ms": 174.50371198356152,
+      "ego_forward_ms": 169.81596872210503,
+      "forward_ms": 353.3159289509058,
+      "end_to_end_ms": 527.4394135922194,
+      "prediction_count": 29,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.326371192932129,
+          0.004933178424835205
+        ],
+        [
+          8.606607437133789,
+          0.052719343453645706
+        ],
+        [
+          12.879938125610352,
+          0.07712572067975998
+        ],
+        [
+          17.05446434020996,
+          0.05141085386276245
+        ],
+        [
+          21.081331253051758,
+          0.06012760475277901
+        ],
+        [
+          24.914653778076172,
+          0.13006585836410522
+        ],
+        [
+          28.820865631103516,
+          0.20016267895698547
+        ],
+        [
+          32.724178314208984,
+          0.13860256969928741
+        ],
+        [
+          36.520442962646484,
+          0.05905873328447342
+        ],
+        [
+          40.322872161865234,
+          -0.06140638142824173
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 4,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 4,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 10,
+      "infrastructure_forward_ms": 174.01700839400291,
+      "ego_forward_ms": 170.57013139128685,
+      "forward_ms": 354.1665840893984,
+      "end_to_end_ms": 464.68957513570786,
+      "prediction_count": 28,
+      "ground_truth_count": 1,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.365007400512695,
+          0.0009124875068664551
+        ],
+        [
+          8.675165176391602,
+          0.061164740473032
+        ],
+        [
+          13.004063606262207,
+          0.10305241495370865
+        ],
+        [
+          17.24167823791504,
+          0.08576501905918121
+        ],
+        [
+          21.33465576171875,
+          0.13633127510547638
+        ],
+        [
+          25.25959014892578,
+          0.24457642436027527
+        ],
+        [
+          29.248125076293945,
+          0.3631631135940552
+        ],
+        [
+          33.254207611083984,
+          0.34460949897766113
+        ],
+        [
+          37.14118957519531,
+          0.3337247371673584
+        ],
+        [
+          41.0147705078125,
+          0.2804358899593353
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 4,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 4,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 11,
+      "infrastructure_forward_ms": 173.0009950697422,
+      "ego_forward_ms": 177.94949188828468,
+      "forward_ms": 360.6408070772886,
+      "end_to_end_ms": 524.943184107542,
+      "prediction_count": 11,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.2975687980651855,
+          0.00197446346282959
+        ],
+        [
+          8.544915199279785,
+          0.05189814791083336
+        ],
+        [
+          12.776793479919434,
+          0.0753607377409935
+        ],
+        [
+          16.90877914428711,
+          0.04524847865104675
+        ],
+        [
+          20.889892578125,
+          0.04605251923203468
+        ],
+        [
+          24.683494567871094,
+          0.11497904360294342
+        ],
+        [
+          28.541948318481445,
+          0.17600464820861816
+        ],
+        [
+          32.38916015625,
+          0.10694123804569244
+        ],
+        [
+          36.13994598388672,
+          0.020723633468151093
+        ],
+        [
+          39.894493103027344,
+          -0.10542085021734238
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 4,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 4,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 12,
+      "infrastructure_forward_ms": 175.6853200495243,
+      "ego_forward_ms": 174.18593913316727,
+      "forward_ms": 358.49720798432827,
+      "end_to_end_ms": 527.5396164506674,
+      "prediction_count": 15,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.303262233734131,
+          0.005297988653182983
+        ],
+        [
+          8.549880981445312,
+          0.05797327682375908
+        ],
+        [
+          12.745095252990723,
+          0.08920037001371384
+        ],
+        [
+          16.849651336669922,
+          0.06650000810623169
+        ],
+        [
+          20.781970977783203,
+          0.06810054183006287
+        ],
+        [
+          24.52631378173828,
+          0.14094415307044983
+        ],
+        [
+          28.31843376159668,
+          0.20950889587402344
+        ],
+        [
+          32.095237731933594,
+          0.1564623862504959
+        ],
+        [
+          35.77659225463867,
+          0.0830780640244484
+        ],
+        [
+          39.47776412963867,
+          -0.03103899210691452
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 4,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 4,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 13,
+      "infrastructure_forward_ms": 180.61380088329315,
+      "ego_forward_ms": 167.63807460665703,
+      "forward_ms": 359.5481086522341,
+      "end_to_end_ms": 507.5467526912689,
+      "prediction_count": 13,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.3046674728393555,
+          -0.002723604440689087
+        ],
+        [
+          8.542245864868164,
+          0.06358477473258972
+        ],
+        [
+          12.771203994750977,
+          0.1052209883928299
+        ],
+        [
+          16.914566040039062,
+          0.08665930479764938
+        ],
+        [
+          20.89137077331543,
+          0.13099263608455658
+        ],
+        [
+          24.71350860595703,
+          0.23590713739395142
+        ],
+        [
+          28.57866668701172,
+          0.33512789011001587
+        ],
+        [
+          32.445465087890625,
+          0.31345224380493164
+        ],
+        [
+          36.20026779174805,
+          0.29534605145454407
+        ],
+        [
+          39.96531677246094,
+          0.23653915524482727
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 4,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 4,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 14,
+      "infrastructure_forward_ms": 177.5474939495325,
+      "ego_forward_ms": 173.2041835784912,
+      "forward_ms": 359.478572383523,
+      "end_to_end_ms": 511.53172366321087,
+      "prediction_count": 17,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.324237823486328,
+          0.0035230517387390137
+        ],
+        [
+          8.584803581237793,
+          0.05853022262454033
+        ],
+        [
+          12.888457298278809,
+          0.07950080186128616
+        ],
+        [
+          17.102340698242188,
+          0.053083792328834534
+        ],
+        [
+          21.202821731567383,
+          0.09498569369316101
+        ],
+        [
+          25.127243041992188,
+          0.18695440888404846
+        ],
+        [
+          29.1387939453125,
+          0.29409852623939514
+        ],
+        [
+          33.16207504272461,
+          0.2510101795196533
+        ],
+        [
+          37.056148529052734,
+          0.20546609163284302
+        ],
+        [
+          40.94541549682617,
+          0.12664860486984253
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 2,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 2,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 15,
+      "infrastructure_forward_ms": 179.06564846634865,
+      "ego_forward_ms": 170.1396480202675,
+      "forward_ms": 357.75911062955856,
+      "end_to_end_ms": 494.84415352344513,
+      "prediction_count": 15,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.3599019050598145,
+          -0.0007402300834655762
+        ],
+        [
+          8.660041809082031,
+          0.04969817027449608
+        ],
+        [
+          12.988615036010742,
+          0.0649256780743599
+        ],
+        [
+          17.224071502685547,
+          0.03465382754802704
+        ],
+        [
+          21.33275032043457,
+          0.0663478672504425
+        ],
+        [
+          25.256879806518555,
+          0.1479206383228302
+        ],
+        [
+          29.26390838623047,
+          0.2420954704284668
+        ],
+        [
+          33.28390121459961,
+          0.1859971135854721
+        ],
+        [
+          37.182289123535156,
+          0.11972538381814957
+        ],
+        [
+          41.08218765258789,
+          0.023315690457820892
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 2,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 2,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 16,
+      "infrastructure_forward_ms": 175.30114017426968,
+      "ego_forward_ms": 173.89224097132683,
+      "forward_ms": 360.3523951023817,
+      "end_to_end_ms": 480.9417184442282,
+      "prediction_count": 12,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.37186336517334,
+          -0.0008642375469207764
+        ],
+        [
+          8.686712265014648,
+          0.04822336509823799
+        ],
+        [
+          13.024263381958008,
+          0.06061629205942154
+        ],
+        [
+          17.264015197753906,
+          0.026642873883247375
+        ],
+        [
+          21.374616622924805,
+          0.05204964056611061
+        ],
+        [
+          25.296104431152344,
+          0.1286805421113968
+        ],
+        [
+          29.297637939453125,
+          0.214326411485672
+        ],
+        [
+          33.31560516357422,
+          0.15035118162631989
+        ],
+        [
+          37.2131233215332,
+          0.07325137406587601
+        ],
+        [
+          41.11393356323242,
+          -0.03811679035425186
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 2,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 2,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 17,
+      "infrastructure_forward_ms": 174.96009916067123,
+      "ego_forward_ms": 173.02147299051285,
+      "forward_ms": 356.8378333002329,
+      "end_to_end_ms": 542.494747787714,
+      "prediction_count": 40,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.366612911224365,
+          0.004720717668533325
+        ],
+        [
+          8.679215431213379,
+          0.052466195076704025
+        ],
+        [
+          12.844876289367676,
+          0.08712393045425415
+        ],
+        [
+          16.916318893432617,
+          0.07274923473596573
+        ],
+        [
+          20.757949829101562,
+          0.04308820888400078
+        ],
+        [
+          24.388582229614258,
+          0.09498907625675201
+        ],
+        [
+          28.032686233520508,
+          0.11568880826234818
+        ],
+        [
+          31.646392822265625,
+          0.04573648422956467
+        ],
+        [
+          35.18874740600586,
+          -0.07024817168712616
+        ],
+        [
+          38.781776428222656,
+          -0.22743551433086395
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 2,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 2,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 18,
+      "infrastructure_forward_ms": 182.03957192599773,
+      "ego_forward_ms": 178.88775281608105,
+      "forward_ms": 370.1624684035778,
+      "end_to_end_ms": 527.3025184869766,
+      "prediction_count": 19,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.289018630981445,
+          0.005716770887374878
+        ],
+        [
+          8.50832748413086,
+          0.05658638849854469
+        ],
+        [
+          12.563624382019043,
+          0.08423060923814774
+        ],
+        [
+          16.528017044067383,
+          0.06740202009677887
+        ],
+        [
+          20.256301879882812,
+          0.02101067081093788
+        ],
+        [
+          23.776399612426758,
+          0.05886397883296013
+        ],
+        [
+          27.314863204956055,
+          0.062277231365442276
+        ],
+        [
+          30.787090301513672,
+          -0.0211341492831707
+        ],
+        [
+          34.200443267822266,
+          -0.15250058472156525
+        ],
+        [
+          37.684391021728516,
+          -0.32114100456237793
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 2,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 2,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    },
+    {
+      "frame": 19,
+      "infrastructure_forward_ms": 183.3568513393402,
+      "ego_forward_ms": 166.62802919745445,
+      "forward_ms": 359.40008610486984,
+      "end_to_end_ms": 544.4270204752684,
+      "prediction_count": 16,
+      "ground_truth_count": 2,
+      "matched_count": 0,
+      "infrastructure_timestamp_fallback": 0,
+      "ego_timestamp_fallback": 0,
+      "planning_xy": [
+        [
+          4.320525169372559,
+          8.07344913482666e-05
+        ],
+        [
+          8.575843811035156,
+          0.06231832131743431
+        ],
+        [
+          12.81083869934082,
+          0.10220954567193985
+        ],
+        [
+          16.959400177001953,
+          0.08302651345729828
+        ],
+        [
+          20.94045066833496,
+          0.10899072885513306
+        ],
+        [
+          24.753759384155273,
+          0.19797766208648682
+        ],
+        [
+          28.61418914794922,
+          0.2846285104751587
+        ],
+        [
+          32.47077178955078,
+          0.2495860606431961
+        ],
+        [
+          36.21509552001953,
+          0.2076915204524994
+        ],
+        [
+          39.97528839111328,
+          0.12421508133411407
+        ]
+      ],
+      "cooperative": {
+        "active_before_ego_removal": 2,
+        "ego_instances_removed": 0,
+        "cooperative_track_count": 2,
+        "cooperative_input_count": 64,
+        "matched_track_count": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "timestamp_pdt": "2026-08-13T21:47:23-07:00",
+  "model": "UniAD-tiny stage-2 epoch-20 trained checkpoint",
+  "checkpoint": "tiny_imgx0.25_e2e_ep20.pth",
+  "frames": 6018,
+  "scenes": 150,
+  "temporal_protocol": "official_literal",
+  "preprocessing": {
+    "decoder": "Conda libjpeg-turbo, OpenCV/libjpeg-compatible",
+    "first_frame_max_abs_normalized_delta": 2.3841858e-7,
+    "fixed_track_capacity": 1600
+  },
+  "pytorch_raw": {
+    "avg_l2_m": 0.7373833411558546,
+    "avg_box_collision_percent": 0.556663343303423
+  },
+  "tensorrt": {
+    "fp32": {
+      "avg_l2_m": 0.7762880958669506,
+      "avg_box_collision_percent": 0.25202171263985823,
+      "planning_mse_mean_dx2_dy2_m2": 6.432390478039451e-7,
+      "planning_mean_point_l2_m": 0.0004254613886587322,
+      "occupancy_iou_percent": 96.89740846255201,
+      "model_mean_p50_p99_ms": [18.584709, 18.371968, 23.137156],
+      "inference_mean_p50_p99_ms": [22.895491, 22.647551, 29.048898],
+      "e2e_mean_p50_p99_ms": [79.151729, 78.026710, 100.531717]
+    },
+    "fp16": {
+      "avg_l2_m": 0.8375436118069052,
+      "avg_box_collision_percent": 0.45973191536501606,
+      "planning_mse_mean_dx2_dy2_m2": 0.061875153332948685,
+      "planning_mean_point_l2_m": 0.0326695553958416,
+      "occupancy_iou_percent": 71.27852831273354,
+      "model_mean_p50_p99_ms": [14.052419, 13.735280, 19.893073],
+      "inference_mean_p50_p99_ms": [18.585679, 18.252403, 25.451520],
+      "e2e_mean_p50_p99_ms": [76.226909, 75.127121, 96.694095]
+    },
+    "int8_eq_fp16_terminal_occupancy": {
+      "avg_l2_m": 0.7847505512303815,
+      "avg_box_collision_percent": 0.2630995901185333,
+      "planning_mse_mean_dx2_dy2_m2": 0.08065937459468842,
+      "planning_mean_point_l2_m": 0.0971200168132782,
+      "occupancy_iou_percent": 62.83275887458493,
+      "model_mean_p50_p99_ms": [14.585045, 14.287872, 20.300626],
+      "inference_mean_p50_p99_ms": [19.057596, 18.775405, 25.904276],
+      "e2e_mean_p50_p99_ms": [76.389508, 75.393260, 95.920177]
+    }
+  },
+  "int8_terminal_occupancy_qdq_protection": true,
+  "system_cuda_or_gxx_used": false
+}

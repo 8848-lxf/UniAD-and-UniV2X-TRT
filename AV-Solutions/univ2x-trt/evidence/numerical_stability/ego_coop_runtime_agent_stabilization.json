@@ -1,0 +1,55 @@
+{
+  "input": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/onnx/ego_coop_runtime_numerically_stable.onnx",
+  "input_sha256": "64a87c7d6fa18c89d0d0a26fbe1fd72305e04ca6f0391c8ad499ae0179a6f038",
+  "output": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/onnx/ego_coop_runtime_agent_stable.onnx",
+  "output_sha256": "2000ac9f91d240851c08d15549cb077df93dabc90808450d96096f40909fda02",
+  "external_data": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/artifacts/camera_repeat_fix/numerical_stability_fix/onnx/ego_coop_runtime_agent_stable.onnx.data",
+  "rewrite": "log(a / b) -> log(a) - log(b)",
+  "requested_nodes": [
+    "Log_4363",
+    "Log_4381"
+  ],
+  "pattern_count": 2,
+  "patterns": [
+    {
+      "original_log": "Log_4363",
+      "original_div": "Div_4362",
+      "output": "onnx::GatherND_6994",
+      "numerator": "onnx::Sub_6990",
+      "denominator": "onnx::Div_6992"
+    },
+    {
+      "original_log": "Log_4381",
+      "original_div": "Div_4380",
+      "output": "onnx::Concat_7012",
+      "numerator": "onnx::Sub_7008",
+      "denominator": "onnx::Div_7010"
+    }
+  ],
+  "replaced_constants": [
+    {
+      "node": "Constant_4355",
+      "dtype": "float64",
+      "old_value": 1e-05,
+      "new_value": 0.0009765625
+    },
+    {
+      "node": "Constant_4356",
+      "dtype": "float64",
+      "old_value": 0.99999,
+      "new_value": 0.9990234375
+    },
+    {
+      "node": "Constant_4373",
+      "dtype": "float64",
+      "old_value": 1e-05,
+      "new_value": 0.0009765625
+    },
+    {
+      "node": "Constant_4374",
+      "dtype": "float64",
+      "old_value": 0.99999,
+      "new_value": 0.9990234375
+    }
+  ]
+}

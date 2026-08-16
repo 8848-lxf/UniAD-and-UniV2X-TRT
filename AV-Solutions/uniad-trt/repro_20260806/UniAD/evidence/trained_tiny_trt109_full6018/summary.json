@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "timestamp_pdt": "2026-08-13T11:55:00-07:00",
+  "model": "trained UniAD-tiny stage-2 epoch 20",
+  "checkpoint_sha256": "88289ecdf2a7576a4c6bd1c0879d15ffba5b93fc22221872fef6196638d91484",
+  "host": "RTX 4090",
+  "toolchain": {
+    "tensorrt": "10.9.0.34",
+    "tensorrt_root": "/home/lixingfeng/uniad-trt/TensorRT-10.9_x86_cu118",
+    "cuda": "11.8.89 nvcc from modelopt_uniad_dl4agx; runtime libcudart resolves to the existing conda modelopt CUDA 11.8.89 library",
+    "compiler": "modelopt_uniad_dl4agx/bin/g++ resolves to the existing conda modelopt Anaconda GCC 11.2.0 compiler",
+    "system_cuda_or_compiler_used": false
+  },
+  "version_contract": {
+    "local_primary": "TensorRT 10.9 for x86 quantization, plugin, engine build, runtime and evaluation",
+    "official_reference": "The NVIDIA DRIVE Orin-X result table and engine-build stage use TensorRT 10.7",
+    "local_trt107_status": "historical serialization-compatible control only"
+  },
+  "calibration": {
+    "temporal_protocol": "official_literal",
+    "validation_frames_scanned": 6019,
+    "shape_901_feeds": 168,
+    "independent_unique_feeds": 168,
+    "global_sample_zero_only_external_initialization": true,
+    "scene_change_external_state_carried": true,
+    "scene_change_use_prev_bev_zero": true,
+    "modelopt": "0.29.0",
+    "method": "entropy",
+    "matmul_weight_quantization_excluded": true,
+    "occupancy_terminal_fp16_protection": {
+      "reason": "The unprotected official-literal QDQ graph emitted all-zero seg_out on 6018/6018 frames",
+      "bypassed_activation_qdq_tensors": [
+        "onnx::Mul_26440",
+        "onnx::Mul_26447"
+      ],
+      "removed_qdq_nodes": 4,
+      "remaining_quantize_linear": 375,
+      "remaining_dequantize_linear": 524,
+      "unprotected_vs_validation315_scale_ratio_mul_26440": 0.06651976650331079,
+      "onnx_sha256": "301337c031acf12c87e198d642b725428b1a3079ae03d2b50ba9b3fc2a95f845"
+    }
+  },
+  "artifact_sha256": {
+    "fp32": "e10d576ecb6ea5acb2e701e17e2661c5a2205a4c687f7e45385429fbb798cfa6",
+    "fp16": "b9682af61ec145adb2aa9e26f4612381ba9d1e9e559ff10a042f0cff10b00150",
+    "int8_official168_occ_terminal_fp16": "b9c69a198e221f6dceb0d04643bf7d825c15a2553a1f0684c0779f8eab16ba79",
+    "runtime_binary": "0961c815aedba93d3aaa4ef7e67bfea891aae16d9211e106f3096ab7ea67f60f",
+    "runtime_plugin": "14ea780167f2a7c5650a959634dca591703dcf8aeb05a83bd0c384791a782782"
+  },
+  "same_input_frame5": {
+    "definition": "TensorRT and saved PyTorch outputs on byte-identical 24-input tensors",
+    "fp32": {
+      "mean_point_l2_m": 0.00027634348947943866,
+      "coordinate_mse_m2": 6.753210807231014e-8,
+      "mean_squared_point_l2_m2": 1.3506421614462027e-7
+    },
+    "fp16": {
+      "mean_point_l2_m": 0.008316611136351066,
+      "coordinate_mse_m2": 4.231832984585848e-5,
+      "mean_squared_point_l2_m2": 8.463665969171696e-5
+    }
+  },
+  "full_6018": {
+    "protocol": "fixed capacity 1600, external state carried across scenes, use_prev_bev=0 on 150 scene starts, raw and optimized trajectories saved from each identical forward",
+    "pytorch_reference": {
+      "raw_avg_l2_m": 0.7807382961960799,
+      "raw_box_collision_percent": 0.667442118090174,
+      "full_python_optimized_avg_l2_m": 0.8265650655427992,
+      "full_python_optimized_box_collision_percent": 0.2215575495735017
+    },
+    "fp32": {
+      "raw_avg_l2_m": 0.7804216942838001,
+      "raw_box_collision_percent": 0.667442118090174,
+      "raw_mean_point_l2_vs_pytorch_m": 0.0037708778399974108,
+      "raw_coordinate_mse_vs_pytorch_m2": 2.2857902877149172e-5,
+      "optimized_avg_l2_m": 0.8190644113008129,
+      "optimized_box_collision_percent": 0.3434142018389276,
+      "optimized_mean_point_l2_vs_python_optimized_m": 0.1888190656900406,
+      "positive_occupancy_frames": 4823,
+      "collision_optimizer_modified_frames": 2766,
+      "model_enqueue_mean_p50_p99_ms": [17.635239, 17.516544, 20.091750],
+      "forward_mean_p50_p99_ms": [21.615813, 21.430198, 25.307245],
+      "end_to_end_mean_p50_p99_ms": [104.779952, 104.185187, 113.196757]
+    },
+    "fp16": {
+      "raw_avg_l2_m": 0.7580286192186216,
+      "raw_box_collision_percent": 0.6286695469148111,
+      "raw_mean_point_l2_vs_pytorch_m": 0.11916070431470871,
+      "raw_coordinate_mse_vs_pytorch_m2": 0.17086152732372284,
+      "optimized_avg_l2_m": 0.7967385114951625,
+      "optimized_box_collision_percent": 0.30741110003323363,
+      "optimized_mean_point_l2_vs_python_optimized_m": 0.19810709357261658,
+      "positive_occupancy_frames": 4802,
+      "collision_optimizer_modified_frames": 2744,
+      "model_enqueue_mean_p50_p99_ms": [12.318465, 12.356528, 13.153823],
+      "forward_mean_p50_p99_ms": [16.314841, 16.300728, 17.397546],
+      "end_to_end_mean_p50_p99_ms": [98.507164, 97.822101, 108.146308]
+    },
+    "int8_official168_occ_terminal_fp16": {
+      "raw_avg_l2_m": 0.7641219120296442,
+      "raw_box_collision_percent": 0.6951368117868616,
+      "raw_mean_point_l2_vs_pytorch_m": 0.17964112758636475,
+      "raw_coordinate_mse_vs_pytorch_m2": 0.17732447385787964,
+      "optimized_avg_l2_m": 0.8011953308256291,
+      "optimized_box_collision_percent": 0.33233632436025257,
+      "optimized_mean_point_l2_vs_python_optimized_m": 0.25369617342948914,
+      "positive_occupancy_frames": 4808,
+      "collision_optimizer_modified_frames": 2736,
+      "model_enqueue_mean_p50_p99_ms": [11.235986, 10.872720, 13.201715],
+      "forward_mean_p50_p99_ms": [15.094597, 14.766485, 17.260446],
+      "end_to_end_mean_p50_p99_ms": [96.045220, 95.329227, 106.011576]
+    },
+    "failed_unprotected_official168_control": {
+      "optimized_avg_l2_m": 0.7641219120296442,
+      "optimized_box_collision_percent": 0.6951368117868616,
+      "positive_occupancy_frames": 0,
+      "collision_optimizer_modified_frames": 0,
+      "verdict": "failed occupancy branch; not an accepted engine"
+    }
+  },
+  "trtexec_100_shape901": {
+    "timing_definition": "GPU Compute Time",
+    "execution_protocol": "three engines run serially on the same RTX 4090 logical GPU 7 after 1000 ms warmup",
+    "fp32_mean_p50_p99_ms": [16.3179, 16.276, 20.521],
+    "fp16_mean_p50_p99_ms": [9.87769, 9.87286, 9.94714],
+    "int8_mean_p50_p99_ms": [9.95876, 9.95123, 10.2083],
+    "trend": "FP32 is slower; FP16 and INT8 are statistically tied on RTX 4090, so the Orin-X FP16-to-INT8 speedup is not reproduced"
+  },
+  "planning_mse_contract": {
+    "official_prose": "average L2 distance between TensorRT and PyTorch trajectories",
+    "ambiguity": "The metric name and official FP32 magnitude resemble a squared error, but the public repository does not include the table generator",
+    "local_policy": "Report mean point L2, coordinate MSE, and mean squared point L2 separately; do not silently relabel one as the official metric"
+  },
+  "acceptance": {
+    "runtime": "pass",
+    "all_6018_outputs_finite": true,
+    "collision_optimizer_audited": true,
+    "int8_occupancy_terminal_fix": "pass",
+    "official_accuracy_parity": "partial: avg L2 and optimized collision are close in range, planning trajectory parity remains materially worse",
+    "official_latency_trend": "partial: FP32-to-reduced-precision speedup reproduced, FP16-to-INT8 speedup not reproduced on RTX 4090"
+  }
+}

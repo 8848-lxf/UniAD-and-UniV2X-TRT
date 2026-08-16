@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "onnx": "/data/lxf/uniad_deployment_outputs/trained_tiny_epoch20/calibration_validation_fixed/onnx/uniad_tiny_int8_eq_dq_only.validation315_fixed_reader.onnx",
+  "nodes": 8426,
+  "quantize_linear_nodes": 377,
+  "dequantize_linear_nodes": 526,
+  "int8_initializers": 675,
+  "weighted_operator_coverage": {
+    "Conv": {
+      "total_nodes": 104,
+      "int8_weight_nodes": 104,
+      "int8_weight_fraction": 1.0
+    },
+    "Gemm": {
+      "total_nodes": 53,
+      "int8_weight_nodes": 45,
+      "int8_weight_fraction": 0.8490566037735849
+    },
+    "MatMul": {
+      "total_nodes": 504,
+      "int8_weight_nodes": 0,
+      "int8_weight_fraction": 0.0
+    }
+  },
+  "int8_weight_consumer_types": {
+    "Conv": 104,
+    "Gemm": 45
+  },
+  "dequantize_output_consumer_types": {
+    "Add": 249,
+    "Conv": 208,
+    "Gemm": 90,
+    "MatMul": 71,
+    "Unsqueeze": 16,
+    "Resize": 15,
+    "Shape": 9,
+    "MaxPool": 8,
+    "Mul": 7,
+    "Transpose": 5,
+    "Gather": 1
+  },
+  "quantize_input_producer_types": {
+    "Add": 122,
+    "Relu": 76,
+    "Reshape": 72,
+    "Transpose": 37,
+    "Conv": 22,
+    "Slice": 19,
+    "Resize": 9,
+    "MaxPool": 8,
+    "Gemm": 5,
+    "Gather": 2,
+    "Cast": 1,
+    "MatMul": 1,
+    "Sigmoid": 1,
+    "Split": 1,
+    "Unsqueeze": 1
+  },
+  "custom_domain_qdq_consumer_types": {},
+  "interpretation": "INT8 weight coverage proves explicit quantized weights for listed operators. QDQ adjacency alone does not prove that TensorRT selected a native INT8 kernel for an elementwise, shape, or custom-plugin layer."
+}

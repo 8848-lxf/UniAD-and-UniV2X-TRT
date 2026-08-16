@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "framework": "TensorRT",
+  "precision": "fp32",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "config": "/home/lixingfeng/UniAD_examine/UniV2X/projects/configs_e2e_univ2x/univ2x_coop_e2e.py",
+  "engines": {
+    "infrastructure": {
+      "path": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/engines/infrastructure_rawmaps_position_input_fp32_fixed960.engine",
+      "sha256": "dd2f2119e684f18e550a34fe5deeefc0766e899688ef668c1daefdb128645fda"
+    },
+    "ego": {
+      "path": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/engines/ego_rawmaps_position_input_fp32_fixed960_coop64.engine",
+      "sha256": "8defaf062437eb3101935ac17fed89411df03579d92f7f9e85ae2133002f1c7d"
+    },
+    "plugin": {
+      "path": "/home/lixingfeng/UniAD_examine/UniV2X/deploy_int8/plugins_msda_fp32accum/build_univ2x_fp32accum/lib_uniad_plugins_trt10.9_x86_cu118.so",
+      "sha256": "d6228ee683eefa6894e3fa0af19cf339bbc9b4d3ff88bf6c04ce60919022eaa4"
+    }
+  },
+  "dataset_frames": 675,
+  "warmup_frames_excluded": 20,
+  "fixed_input_shapes": {
+    "track_count": 960,
+    "cooperative_track_count": 64,
+    "padding_semantics": "Temporal rows use the graph's -10000 invalid sentinel; cooperative rows use an out-of-range matched index and are excluded from fusion."
+  },
+  "legacy_can_bus_deltas": false,
+  "runtime_fallbacks": {
+    "timestamp_identity_output_to_input_enabled": false,
+    "counts": {
+      "infrastructure": 0,
+      "ego": 0
+    },
+    "semantic_basis": "prev_timestamp_out is ONNX Identity(timestamp)",
+    "allowed_negative_inf_output_counts": {}
+  },
+  "runtime_postprocessing": {
+    "dynamic_map_enabled_counts": {
+      "infrastructure": 675,
+      "ego": 675
+    },
+    "semantics": "Recompute data-dependent map overlap suppression from map_raw_masks, map_raw_scores, and map_raw_labels."
+  },
+  "runtime_output_buffers": {
+    "infrastructure": {
+      "buffer_slots": 2,
+      "static_allocations": 40,
+      "static_reuses": 13460,
+      "dynamic_allocations": 61,
+      "dynamic_reuses": 14789,
+      "context_cache_capacity": 1,
+      "context_cache_resident": 1,
+      "context_cache_hits": 0,
+      "context_cache_misses": 0,
+      "context_cache_evictions": 0,
+      "shared_device_memory_bytes": 0
+    },
+    "ego": {
+      "buffer_slots": 2,
+      "static_allocations": 32,
+      "static_reuses": 10768,
+      "dynamic_allocations": 80,
+      "dynamic_reuses": 18145,
+      "context_cache_capacity": 1,
+      "context_cache_resident": 1,
+      "context_cache_hits": 0,
+      "context_cache_misses": 0,
+      "context_cache_evictions": 0,
+      "shared_device_memory_bytes": 0
+    }
+  },
+  "definitions": {
+    "engine_forward": "Sum of CUDA-synchronized infrastructure and ego TensorRT infer calls; excludes map host postprocess and cooperative host matching",
+    "map_postprocess": "CPU reconstruction of data-dependent map overlap suppression from raw TensorRT outputs",
+    "forward": "Infrastructure engine and map postprocess, cooperative host matching, then ego engine and map postprocess, all synchronized",
+    "end_to_end": "Dataloader wait, forward, official occupancy/planning updates, result reconstruction, and planning postprocess"
+  },
+  "infrastructure_engine": {
+    "samples": 655,
+    "mean_ms": 143.62681032023357,
+    "p50_ms": 143.1132759898901,
+    "p99_ms": 151.4129739999771,
+    "min_ms": 140.87505266070366,
+    "max_ms": 163.39853033423424,
+    "fps_from_mean": 6.9624883945440095
+  },
+  "infrastructure_map_postprocess": {
+    "samples": 655,
+    "mean_ms": 8.49846025630263,
+    "p50_ms": 8.813461288809776,
+    "p99_ms": 15.224491395056269,
+    "min_ms": 1.854967325925827,
+    "max_ms": 23.787846788764,
+    "fps_from_mean": 117.66837401614954
+  },
+  "infrastructure_forward": {
+    "samples": 655,
+    "mean_ms": 152.1252705765362,
+    "p50_ms": 151.7571210861206,
+    "p99_ms": 165.4380812868477,
+    "min_ms": 143.10128055512905,
+    "max_ms": 171.51647061109543,
+    "fps_from_mean": 6.573529803497618
+  },
+  "ego_engine": {
+    "samples": 655,
+    "mean_ms": 146.4931295800755,
+    "p50_ms": 146.27691730856895,
+    "p99_ms": 152.41579581052068,
+    "min_ms": 144.07742582261562,
+    "max_ms": 167.32307523488998,
+    "fps_from_mean": 6.826258698046203
+  },
+  "ego_map_postprocess": {
+    "samples": 655,
+    "mean_ms": 8.070346016351504,
+    "p50_ms": 8.07957723736763,
+    "p99_ms": 12.498517297208313,
+    "min_ms": 3.29427607357502,
+    "max_ms": 23.157862946391106,
+    "fps_from_mean": 123.91042440731515
+  },
+  "ego_forward": {
+    "samples": 655,
+    "mean_ms": 154.563475596427,
+    "p50_ms": 154.37065437436104,
+    "p99_ms": 162.12639786303046,
+    "min_ms": 147.73134514689445,
+    "max_ms": 186.17731519043446,
+    "fps_from_mean": 6.469833808674504
+  },
+  "engine_forward": {
+    "samples": 655,
+    "mean_ms": 290.1199399003091,
+    "p50_ms": 289.38766941428185,
+    "p99_ms": 300.2879900485277,
+    "min_ms": 285.47241166234016,
+    "max_ms": 330.7216055691242,
+    "fps_from_mean": 3.446850293515226
+  },
+  "forward": {
+    "samples": 655,
+    "mean_ms": 316.45406403273114,
+    "p50_ms": 315.8348258584738,
+    "p99_ms": 337.0228832215071,
+    "min_ms": 301.43657699227333,
+    "max_ms": 362.66279220581055,
+    "fps_from_mean": 3.160016298278821
+  },
+  "end_to_end": {
+    "samples": 655,
+    "mean_ms": 826.2028414471687,
+    "p50_ms": 456.3310816884041,
+    "p99_ms": 3413.872784823181,
+    "min_ms": 335.3453930467367,
+    "max_ms": 8569.815050810575,
+    "fps_from_mean": 1.210356524855821
+  }
+}

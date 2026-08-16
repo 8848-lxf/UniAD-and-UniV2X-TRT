@@ -1,0 +1,83 @@
+{
+  "schema_version": 2,
+  "scope": "Custom model-controlled Town03 diagnostic with a dense GlobalRoutePlanner route, blocked-vehicle termination, inference every 10 frames, and no traffic. This is not an official V2Xverse leaderboard score.",
+  "route": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml",
+  "route_length_m": 1181.6670165191117,
+  "runs": {
+    "pytorch_fp32": {
+      "frames": 524,
+      "completion_reason": "blocked",
+      "progress_percent": 1.8423601270148504,
+      "unique_collisions": 19,
+      "collision_callbacks": 397,
+      "lane_invasions": 3,
+      "mean_speed_mps": 0.9775886762069331,
+      "combined_forward_mean_p50_p99_ms": [573.5133386646899, 570.2258292585611, 618.6494730226697],
+      "service_end_to_end_mean_p50_p99_ms": [722.6945061881381, 720.4168317839503, 769.7327385656537],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 28,
+      "matched_tracks_sum": 0
+    },
+    "tensorrt_fp32": {
+      "frames": 525,
+      "completion_reason": "blocked",
+      "progress_percent": 1.8423601270148504,
+      "unique_collisions": 20,
+      "collision_callbacks": 399,
+      "lane_invasions": 4,
+      "mean_speed_mps": 0.9661434742104407,
+      "combined_forward_mean_p50_p99_ms": [295.97834089341075, 294.9844067916274, 305.93992337584496],
+      "service_end_to_end_mean_p50_p99_ms": [443.1484073687058, 445.1169641688466, 457.4422861263156],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 31,
+      "matched_tracks_sum": 0
+    },
+    "tensorrt_fp16": {
+      "frames": 526,
+      "completion_reason": "blocked",
+      "progress_percent": 1.8423601270148504,
+      "unique_collisions": 20,
+      "collision_callbacks": 406,
+      "lane_invasions": 5,
+      "mean_speed_mps": 0.9637305807574705,
+      "combined_forward_mean_p50_p99_ms": [237.37201309547976, 234.96710509061813, 249.42468525841832],
+      "service_end_to_end_mean_p50_p99_ms": [387.90854707790106, 387.7819590270519, 412.8739167377353],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 19,
+      "matched_tracks_sum": 0
+    },
+    "tensorrt_int8_eq_fp16": {
+      "frames": 530,
+      "completion_reason": "blocked",
+      "progress_percent": 1.9292776253905537,
+      "unique_collisions": 20,
+      "collision_callbacks": 406,
+      "lane_invasions": 4,
+      "mean_speed_mps": 0.9694648236118314,
+      "combined_forward_mean_p50_p99_ms": [200.31802395645244, 198.56306537985802, 214.06061882153153],
+      "service_end_to_end_mean_p50_p99_ms": [349.38298928766295, 349.9724129214883, 364.8490456491709],
+      "cooperative_active_nonzero_calls_total_calls": [8, 53],
+      "active_infrastructure_tracks_sum": 23,
+      "matched_tracks_sum": 0
+    }
+  },
+  "latency_definition": "Steady state excludes the first model inference and combined forward includes the sequential infrastructure and ego stages.",
+  "sensor_protocol": {
+    "ego_camera_fov_degrees": 100.6,
+    "infrastructure_camera_fov_degrees": 47.9,
+    "independent_intrinsics": true,
+    "route_navigation_command": true
+  },
+  "trajectory_protocol": "Both the deployment-PyTorch and TensorRT CARLA services consumed raw outs_planning rather than the occupancy-aware offline-evaluation post-process.",
+  "available_route_asset_inventory": {
+    "v2xverse_42routes": 42,
+    "v2xverse_42scenarios_trigger_events": 4829,
+    "training_split_routes": 233,
+    "evaluation_routes": 105,
+    "additional_routes": 66,
+    "routes_executed_by_this_evidence": 1,
+    "scenario_events_spawned_by_this_evidence": 0
+  },
+  "driving_result_interpretation": "Every backend produced active infrastructure tracks in 8 of 53 inference calls, but host cooperative matching accepted zero tracks. The offline V2X-SPD checkpoint, CARLA extrinsics/detection geometry, host association contract, raw planning output, and custom controller are therefore not closed-loop equivalent. Route and scenario catalogues exist in the reused V2Xverse tree, but this custom runner bypasses its route manager and scoring protocol; progress and events remain diagnostic only.",
+  "raw_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/carla_closed_loop_corrected_20260812"
+}

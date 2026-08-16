@@ -1,0 +1,32 @@
+{
+  "avg_box_collision_percent": 3.1405782652043865,
+  "avg_l2_m": NaN,
+  "avg_point_collision_percent": 0.0,
+  "box_collision_by_timestep_percent": [
+    3.555998670654702,
+    3.3233632436025258,
+    3.207045530076438,
+    3.0574941841143235,
+    2.941176470588235,
+    2.7583914921900963
+  ],
+  "frames": 6018,
+  "l2_by_timestep_m": [
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    NaN,
+    NaN
+  ],
+  "metric_source": "UniAD PlanningMetric with tiny bounds [-12.5, 12.5, 0.5]",
+  "point_collision_by_timestep_percent": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "schema_version": 1
+}

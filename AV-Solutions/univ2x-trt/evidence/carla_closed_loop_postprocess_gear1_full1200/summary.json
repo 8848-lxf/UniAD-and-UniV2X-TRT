@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scope": "Custom Town03 diagnostic with occupancy collision plus predicted-drivable correction, explicit forward gear, no traffic, inference every 10 frames, and a 400-frame blocked threshold; not an official V2Xverse score",
+  "route": "/data/jichengzhi_dair/V2Xverse_codriving/simulation/leaderboard/data/training_routes/splitted_routes/routes_town03_1.xml",
+  "route_length_m": 1181.6670165191117,
+  "runtime": {"tensorrt_root": "/home/lixingfeng/uniad-trt/TensorRT-10.9_x86_cu118", "tensorrt_version": "10.9.0.34"},
+  "control_fix": "The reused CARLA 0.9.10.1 binary remained in neutral under direct automatic VehicleControl; manual_gear_shift=true and gear=1 restored longitudinal motion.",
+  "planning_protocol": "Every PyTorch and TensorRT response applies occupancy collision optimization and the original UniV2X predicted-drivable tail-freeze algorithm before control.",
+  "drivable_parity": "Twelve synthetic feasible-area/tail cases match PlanningHeadSingleMode.drivable_optimization with maximum absolute delta 0.",
+  "runs": {
+    "pytorch_fp32": {
+      "checkpoint": "/data/lxf/univ2x_ckpts/univ2x_coop_e2e_stg2.pth",
+      "frames": 711, "completion_reason": "blocked", "progress_percent": 1.756332168430686,
+      "unique_collisions": 30, "lane_invasions": 6, "postprocess_changed_calls": 6,
+      "active_infrastructure_tracks_sum": 37, "matched_cooperative_tracks_sum": 0,
+      "combined_forward_mean_p50_p99_ms": [571.9924632092597, 567.975327372551, 621.3173985481261],
+      "service_end_to_end_mean_p50_p99_ms": [722.178887943147, 721.8604385852814, 774.9811995774508]
+    },
+    "tensorrt_fp32": {
+      "infrastructure_engine": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/engines/infrastructure_rawmaps_position_input_fp32_fixed960.engine",
+      "ego_engine": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/engines/ego_rawmaps_position_input_fp32_fixed960_coop64.engine",
+      "frames": 500, "completion_reason": "blocked", "progress_percent": 1.6709813722145954,
+      "unique_collisions": 20, "lane_invasions": 4, "postprocess_changed_calls": 4,
+      "active_infrastructure_tracks_sum": 47, "matched_cooperative_tracks_sum": 0,
+      "combined_forward_mean_p50_p99_ms": [301.0134497391326, 297.06850834190845, 316.064370945096],
+      "service_end_to_end_mean_p50_p99_ms": [450.056574630494, 453.7270460277796, 503.8371942192316]
+    },
+    "tensorrt_fp16": {
+      "infrastructure_engine": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/fp16_corrected/engines/infrastructure_position_fp16safe_bev_motionlineage_fixed960.engine",
+      "ego_engine": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/fp16_corrected/engines/ego_position_fp16safe_motionlineage_fixed960_coop64.engine",
+      "frames": 500, "completion_reason": "blocked", "progress_percent": 1.6709813722145954,
+      "unique_collisions": 20, "lane_invasions": 4, "postprocess_changed_calls": 5,
+      "active_infrastructure_tracks_sum": 38, "matched_cooperative_tracks_sum": 0,
+      "combined_forward_mean_p50_p99_ms": [237.6885062121615, 233.63102599978447, 257.34920509159565],
+      "service_end_to_end_mean_p50_p99_ms": [389.4873058461413, 390.3226424008608, 433.0497048795223]
+    },
+    "tensorrt_int8_eq_fp16": {
+      "infrastructure_engine": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/quantization_corrected/stable/engines/infrastructure_int8_stable_bev_motionlineage_fixed960.engine",
+      "ego_engine": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/quantization_corrected/stable/engines/ego_int8_stable_motionlineage_fixed960_coop64.engine",
+      "frames": 755, "completion_reason": "blocked", "progress_percent": 1.756332168430686,
+      "unique_collisions": 32, "lane_invasions": 6, "postprocess_changed_calls": 4,
+      "active_infrastructure_tracks_sum": 36, "matched_cooperative_tracks_sum": 0,
+      "combined_forward_mean_p50_p99_ms": [206.77552364766598, 202.05792225897312, 277.6761515066028],
+      "service_end_to_end_mean_p50_p99_ms": [366.79451937476796, 360.16459949314594, 447.40995194762957]
+    }
+  },
+  "latency_definition": "Steady state excludes the first inference. Combined forward includes sequential infrastructure and ego stages; service end-to-end also includes capture serialization, preprocessing, host cooperative association, post-processing, and response serialization.",
+  "interpretation": "Forward latency remains monotonic FP32 > FP16 > INT8. Every backend still accepts zero cooperative tracks and stalls after early contact, so the closed-loop failure remains shared V2X-SPD-to-CARLA geometry/domain and host-association mismatch, not an INT8-only failure.",
+  "raw_root": "/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810/carla_closed_loop_postprocess_gear1_full1200_v2_20260812"
+}
