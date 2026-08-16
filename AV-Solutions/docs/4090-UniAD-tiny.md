@@ -752,3 +752,87 @@ The base graph uses `base_e2e.py`/`base_e2e_trt_p.py`, the base 200x200 planning
 - Superseded random-weight `official_dummy`, incompatible `smoke_base_hybrid`, and the old root tiny `onnx` generated trees were removed from the local DL4AGX deployment artifacts. Training checkpoints under `stage1`/`stage2` were retained because they are weights, not stale ONNX/engine outputs.
 - The old 30G UniV2X generated artifact tree under `UniV2X/deploy_int8_legacy_20260816/artifacts` was removed after verification that the accepted corrected outputs are already under `/data/lxf/univ2x_deployment_outputs/semantic_parity_20260810`. `AV-Solutions/univ2x-trt/artifacts` now links directly there; the old source compatibility directory remains only as a small source tree.
 - No original `/data` dataset or checkpoint was modified. The canonical source root remains `/home/lixingfeng/UniAD_examine/DL4AGX`; generated model files are now kept on `/data` rather than consuming home storage.
+
+---
+
+## Iteration 025 - 2026-08-16T08:23:46-07:00 (PDT) - UniAD-base official-flow re-deployment
+
+### Why the previous base table is superseded
+
+The old TensorRT base rows (`FP32 avg. L2 2.559613 m`, `box Col 1.165947%`) are invalid as an accuracy-parity result. The base runtime had silently used the tiny RGB/ImageNet normalization `(x - mean) / std`. The base config instead requires decoded RGB JPEG pixels to be reordered to BGR and the BGR mean to be subtracted with unit standard deviation. After restoring a compile-time `UNIAD_IMAGE_NORM_MODE=1`, the first-frame normalized tensor differs from PyTorch/OpenCV by at most `2.38e-7`, and the first raw trajectory changed from the wrong `(-0.258119, 1.40344, ...)` to `(-0.326484, 3.13016, ...)`, close to PyTorch `(-0.325478, 3.133196, ...)`.
+
+The base checkpoint also emits up to 1155 track rows during validation. The tiny tutorial's `MAX=1150` profile is therefore invalid for this checkpoint. The rebuilt base profile is `MIN/OPT/MAX=901/901/1400`; runtime buffers support 2200 rows, so this does not truncate temporal state.
+
+### Official patch and export audit
+
+- `uniad-onnx-export.patch` introduces `forward_uniad_trt` deployment paths across tracking, motion, occupancy, map/panseg and planning heads, exposes recursive track/BEV/timestamp/pose tensors, replaces unsupported decoding/control flow, and makes custom TRT operators exportable.
+- `bevformer_tensorrt.patch` supplies the PyTorch-side symbolic/custom-op path for multi-scale deformable attention, DCNv2, rotate/inverse and related BEVFormer operations.
+- `plugins-trt10-support.patch` ports the TensorRT plugins and kernels to the TRT 10 API; `uniad-torch1.12.patch`, `mmdet3d.patch` and `nuscenes-devkit.patch` align the framework, dataset and evaluation stack; `uniad-tiny-training-support.patch` is training/config support and does not itself quantize the graph.
+- Export loads the matching checkpoint/config, executes six recursive `forward_uniad_trt` calls before `torch.onnx.export`, exports opset 16 with custom operators, then changes every ONNX `Reshape.allowzero` to `1`. The fresh repaired base graph is deterministic and byte-identical to the previous repaired graph: SHA256 `b1da46ab05127ae19c1e324f08ab0bfad3c679b91c725f826a071ecdfb2aad4f`. This isolates the earlier FP32 failure to runtime preprocessing/protocol rather than ONNX nondeterminism.
+
+### Calibration semantics and 4090 compatibility
+
+The repaired calibration script preserves the official temporal meaning: external track/BEV/timestamp state is initialized only at global sample 0; a scene boundary sets `use_prev_bev=0` while the external previous state is still carried; every exact `prev_track_intances0.shape[0] == 901` feed is stored as an independent 24-input dictionary. It fixes only the official script's loop-overwrite and counter-reset save bugs and writes a manifest/feed hash audit.
+
+The first 10% train scan (2813 frames) produced 11 unique feeds: sample 0 plus samples `1600-1605` and `1633-1636`. Provider validation reports 11 independent dictionary identities and 11 unique 24-input signatures. Because those natural hits are highly clustered, they are retained as a pipeline/memory gate rather than accepted as the final INT8 calibration set; a separate 15% train scan is in progress.
+
+ModelOpt 0.29 originally configures an 80 GiB TensorRT EP workspace, which caused augmented base calibration to exhaust a 24 GB RTX 4090. The project wrapper now bounds calibration TRT workspace to 4 GiB, disables auxiliary streams and uses builder level 0 without modifying the installed Conda environment or ModelOpt source. The required official EP order (`trt`, `cuda:0`, `cpu`), entropy calibration, `MatMul` exclusion, `dq_only`, graph simplification and custom plugins remain enabled.
+
+### Reproducibility controls added
+
+- Base engine build and runtime now share the same `build_base_recheck/libuniad_plugin.so`; build/profile suffixes prevent an unverified candidate from overwriting the accepted engine.
+- Base evaluation defaults to `official_literal`, explicitly exports `UNIAD_COLLISION_OPTIMIZATION=1`, records compressed occupancy, and writes model/inference/E2E mean-p50-p99 plus collision-optimizer audit counts.
+- A dedicated PyTorch `forward_uniad_trt` validation runner writes raw trajectories and a checkpoint/protocol manifest, so `planning MSE` can be recomputed against an exact protocol-matched reference rather than the older unmanifested Python test CSV.
+- Generated ONNX/engines/evaluation remain under `/data/lxf/uniad_deployment_outputs/uniad_base_e2e`; duplicate and invalid intermediate ONNX/FP32 debug engines were removed, recovering about 6 GB. Dataset and checkpoint files were not modified.
+
+---
+
+## Iteration 026 - 2026-08-16T10:03:30-07:00 (PDT) - Base calibration memory gate and RotateTRT creator repair
+
+### Workspace and storage boundaries
+
+`TensorRT workspace` is a temporary GPU-memory budget used while TensorRT searches tactics and executes the ORT calibration subgraph. It is unrelated to the shell working directory or filesystem capacity. The calibration process cwd was `/home/lixingfeng/UniAD_examine`; the active deployment worktree is `DL4AGX/AV-Solutions/uniad-trt/repro_20260806`, while generated ONNX, calibration, engine and evaluation artifacts remain under `/data/lxf/uniad_deployment_outputs/uniad_base_e2e`.
+
+The earlier statement that an observed 2.6 GiB process footprint proved the 80 GiB workspace issue closed was incorrect: that sample was taken before the augmented graph executed. A 4 GiB tactic workspace alone still failed on the monolithic 662-output calibration graph while requesting another 71,270,400-byte buffer. The accepted mechanism combines:
+
+- TensorRT EP workspace `4 GiB`, auxiliary streams `0`, builder level `0`;
+- entropy calibration tensors split into 11 chunks, maximum 64 tensors per chunk;
+- each of the 11 independent feed dictionaries rewound and replayed for every chunk;
+- shared Q/DQ tensor components kept in the same chunk;
+- each child ORT/TensorRT session released before the next chunk.
+
+The real base gate completed all 11 chunks and all 662 tensors. Observed GPU usage varied by activation shape and reached about 15.5 GiB in the heaviest sampled chunk, then returned to about 2--4 GiB between chunks. No CUDA allocation failure recurred. The 11 feeds remain a memory/mechanism gate, not a final representative calibration set: scanning the first 15% train prefix still produced the same clustered 11 exact-901 feeds.
+
+Evidence:
+
+- chunk audit: `/data/lxf/uniad_deployment_outputs/uniad_base_e2e/audits/base_train10pct_entropy_chunks_20260816_v3.json` (`status=complete`, chunks `0..10`);
+- gate Q/DQ ONNX: `/data/lxf/uniad_deployment_outputs/uniad_base_e2e/onnx/recheck_20260816/uniad_base_e2e_int8_eq_train10pct_chunked_gate_v3.onnx`, SHA256 `47bba5f6befe5b8dc16fba3f116a4a9070c7ea93b09aced158ce6554a70e9e01`;
+- quantization audit: `/data/lxf/uniad_deployment_outputs/uniad_base_e2e/audits/base_train10pct_chunked_gate_v3_quantization_inspection.json`;
+- TensorRT 10.9 parser: `parsed=True`, `errors=0`, 24 inputs, 23 outputs, 33,850 layers.
+
+The gate graph contains 602 quantized nodes. Validation confirms explicit DQ nodes, INT8 initializers, finite positive scales, 11/11 unique calibration feeds, and zero MatMul nodes consuming INT8 weight initializers. ModelOpt may still report MatMul activation Q/DQ propagation; that is distinct from quantizing MatMul weights.
+
+### RotateTRT `center` warning
+
+The ONNX symbolic exports `RotateTRT(img, angle, center, interpolation_i=...)`; `center` is the third runtime tensor input. `RotatePlugin::configurePlugin()` also requires `nbInputs == 3`. The old plugin creator nevertheless advertised both `interpolation` and `center` as build-time `PluginField` attributes, while `createPlugin()` only reads `interpolation`. TensorRT 10.9 therefore warned that the ONNX node had no `center` attribute even though the runtime input was present.
+
+The fix removes only the erroneous creator field declaration from both RotateTRT creators and retains the three-input runtime ABI and kernel. The plugin was rebuilt with the isolated `modelopt_uniad_dl4agx` Conda CUDA 11.8/GCC toolchain and TensorRT `10.9.0.34`. The repaired FP and Q/DQ graphs parse without the warning. This metadata defect was not the calibration OOM cause and did not require changing the rotate kernel.
+
+### Protocol-matched base FP32/FP16 full-sequence check
+
+Both engines ran 6018 frames with `official_literal`, fixed track capacity 1400, collision optimization enabled, and the exact new PyTorch `forward_uniad_trt` raw trajectory reference. `mean(dx^2+dy^2)` is now emitted separately from mean point L2; the historical `planning_mse` alias is retained for compatibility and must not be read as a squared error.
+
+| Engine/output | avg. L2 | box Col | mean point L2 vs PyTorch | mean(dx^2+dy^2) |
+| --- | ---: | ---: | ---: | ---: |
+| PyTorch raw deployment reference | 0.817744 m | 0.600975% | 0 | 0 |
+| TRT FP32 raw | 0.804913 m | 0.653595% | 0.115536 m | 0.603189 m^2 |
+| TRT FP32 collision-optimized | 0.847111 m | 0.207710% | 0.196022 m | 0.666626 m^2 |
+| TRT FP16 raw | 0.816562 m | 0.708984% | 0.539206 m | 1.193325 m^2 |
+| TRT FP16 collision-optimized | 0.858995 m | 0.282486% | 0.596742 m | 1.258518 m^2 |
+
+| Engine | model enqueue mean/p50/p99 | synchronized inference call mean/p50/p99 | E2E mean/p50/p99 |
+| --- | ---: | ---: | ---: |
+| TRT FP32 | 204.698 / 204.115 / 210.275 ms | 233.194 / 231.043 / 261.908 ms | 344.725 / 339.708 / 437.793 ms |
+| TRT FP16 | 106.361 / 105.706 / 111.661 ms | 133.848 / 132.541 / 147.891 ms | 245.114 / 242.500 / 311.807 ms |
+
+These rows supersede the old wrong-normalization base deployment table for FP32/FP16. They do not yet close the final base INT8 acceptance because the current successful Q/DQ artifact used only the 11-feed mechanism gate and has not been promoted to a representative calibration engine/full-sequence result.

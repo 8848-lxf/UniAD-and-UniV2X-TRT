@@ -3,6 +3,7 @@
 set -euo pipefail
 
 REPRO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+DEPLOY_ROOT=${UNIAD_DEPLOY_ROOT:-${REPRO_ROOT}/../../UniAD_deploy}
 source "${REPRO_ROOT}/scripts/env.sh"
 
 BASE_ROOT=${BASE_ROOT:-${REPRO_ROOT}/artifacts/uniad_base_e2e}
@@ -21,10 +22,14 @@ fi
 mkdir -p "${BASE_ROOT}/onnx/pytorch_temporal_outputs"
 mkdir -p "${BASE_ROOT}/onnx/raw_inputs"
 mkdir -p "${BASE_ROOT}/logs"
-cd "${REPRO_ROOT}/UniAD_deploy"
+ONNX_OUTPUT=${ONNX_OUTPUT:-${BASE_ROOT}/onnx/uniad_base_e2e_dcn_plugin.onnx}
+ONNX_INPUT_DIR=${ONNX_INPUT_DIR:-${BASE_ROOT}/metadata/onnx_inputs}
+ONNX_RUNTIME_OUTPUT_DIR=${ONNX_RUNTIME_OUTPUT_DIR:-${BASE_ROOT}/onnx/pytorch_temporal_outputs}
+RAW_INPUT_DUMP_DIR=${RAW_INPUT_DUMP_DIR:-${BASE_ROOT}/onnx/raw_inputs}
+cd "${DEPLOY_ROOT}"
 
 export CUDA_VISIBLE_DEVICES="${UNIAD_GPU}"
-export PYTHONPATH="${REPRO_ROOT}/UniAD_deploy:${PYTHONPATH:-}"
+export PYTHONPATH="${DEPLOY_ROOT}:${PYTHONPATH:-}"
 
 exec python -m torch.distributed.launch \
   --nproc_per_node=1 \
@@ -35,7 +40,7 @@ exec python -m torch.distributed.launch \
   "${CHECKPOINT}" \
   --launcher pytorch \
   --eval bbox \
-  --onnx-output "${BASE_ROOT}/onnx/uniad_base_e2e_dcn_plugin.onnx" \
-  --onnx-input-dir "${BASE_ROOT}/metadata/onnx_inputs" \
-  --onnx-runtime-output-dir "${BASE_ROOT}/onnx/pytorch_temporal_outputs" \
-  --raw-input-dump-dir "${BASE_ROOT}/onnx/raw_inputs"
+  --onnx-output "${ONNX_OUTPUT}" \
+  --onnx-input-dir "${ONNX_INPUT_DIR}" \
+  --onnx-runtime-output-dir "${ONNX_RUNTIME_OUTPUT_DIR}" \
+  --raw-input-dump-dir "${RAW_INPUT_DUMP_DIR}"

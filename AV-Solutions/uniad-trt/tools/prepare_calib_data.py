@@ -14,6 +14,8 @@
 # limitations under the License.
 
 import argparse
+import csv
+import json
 import os
 import numpy as np
 import torch
@@ -63,6 +65,40 @@ def parse_args():
         description='MMDet test (and eval) a model')
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
+    parser.add_argument(
+        '--calibration-output',
+        default='./calib_data_shape0_901.npz',
+        help='output path for the collected calibration tensors')
+    parser.add_argument(
+        '--max-calibration-samples',
+        type=int,
+        default=0,
+        help='maximum matching samples to collect; 0 collects all samples')
+    parser.add_argument(
+        '--skip-calibration-output', action='store_true',
+        help='run deployment-PyTorch inference without collecting calibration tensors')
+    parser.add_argument(
+        '--planning-predictions-output',
+        help='optional CSV path for raw forward_uniad_trt planning trajectories')
+    parser.add_argument(
+        '--calibration-manifest',
+        help='optional JSON manifest describing every selected calibration feed')
+    parser.add_argument(
+        '--max-frames', type=int, default=0,
+        help='maximum dataset frames to process; 0 processes the full split')
+    parser.add_argument('--workers', type=int, default=8)
+    parser.add_argument(
+        '--dataset-split', choices=('train', 'test'), default='test',
+        help='use the requested annotation split with the deterministic test pipeline')
+    parser.add_argument(
+        '--temporal-protocol', choices=('official_literal', 'scene_reset'),
+        default='official_literal',
+        help=('official_literal initializes external state only at sample_id 0 and '
+              'uses use_prev_bev=0 at scene boundaries; scene_reset resets all '
+              'external state at each scene boundary'))
+    parser.add_argument('--bev-height', type=int, default=50)
+    parser.add_argument('--img-height', type=int, default=256)
+    parser.add_argument('--img-width', type=int, default=416)
     parser.add_argument('--out', default='output/results.pkl', help='output result file in pickle format')
     parser.add_argument(
         '--fuse-conv-bn',
@@ -192,6 +228,11 @@ def main():
         torch.backends.cudnn.benchmark = True
 
     cfg.model.pretrained = None
+    if args.dataset_split == 'train':
+        train_ann_file = cfg.data.train.ann_file
+        cfg.data.test = copy.deepcopy(cfg.data.test)
+        cfg.data.test.ann_file = train_ann_file
+        cfg.data.test.test_mode = True
     # in case the test dataset is concatenated
     samples_per_gpu = 1
     if isinstance(cfg.data.test, dict):
@@ -222,11 +263,20 @@ def main():
         set_random_seed(args.seed, deterministic=args.deterministic)
 
     # ########## Prepare Inputs for Pytorch Inference ##########
+    # torch112 may default to ``spawn`` in this deployment environment.  The
+    # UniAD dataset retains a dict_keys view which is valid under fork but is
+    # not pickleable under spawn.  Workers are created before the model is
+    # moved to CUDA, so fork preserves the requested worker count safely.
+    if args.workers > 0:
+        try:
+            torch.multiprocessing.set_start_method('fork', force=True)
+        except RuntimeError:
+            pass
     dataset = build_dataset(cfg.data.test)
     data_loader = build_dataloader(
         dataset,
         samples_per_gpu=samples_per_gpu,
-        workers_per_gpu=0, 
+        workers_per_gpu=args.workers,
         dist=distributed,
         shuffle=False,
         nonshuffler_sampler=cfg.data.nonshuffler_sampler,
@@ -249,9 +299,9 @@ def main():
     if 'PALETTE' in checkpoint.get('meta', {}):
         model.PALETTE = checkpoint['meta']['PALETTE']
 
-    bevh=50
-    img_h = 256
-    img_w = 416
+    bevh = args.bev_height
+    img_h = args.img_height
+    img_w = args.img_width
 
     torch.random.manual_seed(0)
     model=model.cuda()
@@ -368,11 +418,29 @@ def main():
     prev_angle = 0
     shape0 = 901
     shape0_dict = {}
+    calibration_batches = {}
+    planning_predictions = []
+    num_calib_data = 0
+    previous_scene_token = None
+    calibration_manifest = []
     for sample_id, data in tqdm(enumerate(data_loader)):
+        if args.max_frames > 0 and sample_id >= args.max_frames:
+            break
         img_metas = data["img_metas"][0].data
         timestamp = data["timestamp"][0] if data["timestamp"] is not None else None
-        if sample_id == 0:
+        scene_token = img_metas[0][0]["scene_token"]
+        new_scene = scene_token != previous_scene_token
+        initial_frame = sample_id == 0
+        reset_external_state = initial_frame or (
+            args.temporal_protocol == 'scene_reset' and new_scene)
+        if reset_external_state:
             timestamp0 = timestamp
+            prev_pos = 0
+            prev_angle = 0
+            test_track_instances = [
+                item * 0 for item in _generate_empty_zeros_tracks_trt()
+            ]
+        previous_scene_token = scene_token
         
         # Get the delta of ego position and angle between two timestamps.
         tmp_pos = copy.deepcopy(img_metas[0][0]['can_bus'][:3])
@@ -400,14 +468,14 @@ def main():
                     onnx_inputs[key] = np.array([img_h,img_w]).astype(np.float32)
                     onnx_inputs[key] = torch.from_numpy(onnx_inputs[key]).cuda()
                 elif key=='prev_bev':
-                    if sample_id==0:
+                    if reset_external_state:
                         onnx_inputs[key] = torch.from_numpy(np.zeros([bevh**2, 1, 256]).astype(np.float32)).cuda()
                     else:
                         onnx_inputs[key]= bev_embed
                 elif key=='max_obj_id':
-                    onnx_inputs[key] = torch.Tensor([0]).int().cuda() if sample_id==0 else max_obj_id
+                    onnx_inputs[key] = torch.Tensor([0]).int().cuda() if reset_external_state else max_obj_id
                 elif 'prev_track_intances' in key:
-                    if sample_id==0:
+                    if reset_external_state:
                         onnx_inputs[key] = test_track_instances[int(key[19:])].cuda()
                     else:
                         if int(key[19:]) in (2,7,10): # 2,7,10 will not be used in ONNX graph
@@ -421,22 +489,23 @@ def main():
                             if onnx_inputs[key].dtype == torch.int64:
                                 onnx_inputs[key] = onnx_inputs[key].int()
                 elif key=='prev_l2g_r_mat':
-                    onnx_inputs[key] = l2g_r_mat0.float().cuda() if sample_id==0 else prev_l2g_r_mat_out
+                    onnx_inputs[key] = l2g_r_mat0.float().cuda() if reset_external_state else prev_l2g_r_mat_out
                 elif key=='prev_l2g_t':
-                    onnx_inputs[key] = l2g_t0.float().cuda() if sample_id==0 else prev_l2g_t_out
+                    onnx_inputs[key] = l2g_t0.float().cuda() if reset_external_state else prev_l2g_t_out
                 elif key=='prev_timestamp':
-                    onnx_inputs[key] = torch.zeros([1]).float().cuda() if sample_id==0 else prev_timestamp_out
+                    onnx_inputs[key] = torch.zeros([1]).float().cuda() if reset_external_state else prev_timestamp_out
                 elif key=='use_prev_bev':
-                    cur_img_metas_scene_token = onnx_inputs["img_metas_scene_token"]
-                    if not torch.equal(cur_img_metas_scene_token,img_metas_scene_token):
-                        onnx_inputs[key] = np.array([0]).astype(np.int32)
-                    else:
-                        onnx_inputs[key] = np.array([1]).astype(np.int32)
+                    onnx_inputs[key] = np.array(
+                        [0 if (initial_frame or new_scene) else 1]
+                    ).astype(np.int32)
                     onnx_inputs[key] = torch.from_numpy(onnx_inputs[key]).cuda()
-                    img_metas_scene_token = cur_img_metas_scene_token
+                    img_metas_scene_token = onnx_inputs["img_metas_scene_token"]
 
         with torch.no_grad():
             dummy_outputs = model.forward_uniad_trt(**onnx_inputs)
+        if args.planning_predictions_output:
+            planning_predictions.append(
+                dummy_outputs[-1].detach().cpu().reshape(-1).numpy())
         max_obj_id = dummy_outputs[-3]
         bev_embed = dummy_outputs[-9]
         prev_l2g_r_mat_out = dummy_outputs[-10]
@@ -481,7 +550,6 @@ def main():
             command=[1],
             use_prev_bev=[1],
             max_obj_id=[1],
-            g2l_r=[1, 3, 3],
         )
         
         if shape0 is None:
@@ -495,19 +563,74 @@ def main():
             print(" ")
             print(sorted(shape0_dict.items(), key=lambda item: item[1], reverse=True))
             
-        else:
+        elif not args.skip_calibration_output:
             # save calibration data
-            num_calib_data = 0
             if shape0 == onnx_inputs['prev_track_intances0'].shape[0]:
                 for key in onnx_input_shapes.keys():
-                    if key not in onnx_inputs:
-                        npz_data = {}
-                        npz_data[key] = onnx_inputs[key].detach().cpu().numpy()
-                    else:
-                        npz_data[key] = np.concatenate([npz_data[key], onnx_inputs[key].detach().cpu().numpy()], axis=0)
-                np.savez('/workspace/UniAD/calib_data_shape0_'+str(shape0)+'.npz', **npz_data)
+                    calibration_batches.setdefault(key, []).append(
+                        onnx_inputs[key].detach().cpu().numpy())
                 num_calib_data += 1
+                calibration_manifest.append({
+                    'sample_id': int(sample_id),
+                    'scene_token': str(scene_token),
+                    'active_tracks': int(onnx_inputs['prev_track_intances0'].shape[0]),
+                    'new_scene': bool(new_scene),
+                    'use_prev_bev': int(onnx_inputs['use_prev_bev'].item()),
+                    'temporal_protocol': args.temporal_protocol,
+                })
                 print('num_calib_data: ', num_calib_data)
+                if args.max_calibration_samples > 0 and num_calib_data >= args.max_calibration_samples:
+                    break
+
+    if args.planning_predictions_output:
+        output_dir = os.path.dirname(os.path.abspath(args.planning_predictions_output))
+        os.makedirs(output_dir, exist_ok=True)
+        with open(args.planning_predictions_output, 'w', newline='') as handle:
+            writer = csv.writer(handle)
+            writer.writerow(
+                ['frame']
+                + [f'{axis}{step}' for step in range(1, 7) for axis in ('x', 'y')])
+            for frame, prediction in enumerate(planning_predictions):
+                writer.writerow([frame] + prediction.tolist())
+        print(
+            f'Saved {len(planning_predictions)} raw planning predictions to '
+            f'{args.planning_predictions_output}')
+        with open(args.planning_predictions_output + '.manifest.json', 'w') as handle:
+            json.dump({
+                'schema_version': 1,
+                'producer': 'UniAD PyTorch forward_uniad_trt',
+                'temporal_protocol': args.temporal_protocol,
+                'frames': len(planning_predictions),
+                'trajectory': 'raw outs_planning',
+                'checkpoint': os.path.abspath(args.checkpoint),
+                'dataset_split': args.dataset_split,
+            }, handle, indent=2, sort_keys=True)
+            handle.write('\n')
+
+    if shape0 is not None and not args.skip_calibration_output:
+        if num_calib_data == 0:
+            raise RuntimeError(f'No calibration samples found with shape0={shape0}')
+        npz_data = {
+            key: np.concatenate(values, axis=0)
+            for key, values in calibration_batches.items()
+        }
+        output_dir = os.path.dirname(os.path.abspath(args.calibration_output))
+        os.makedirs(output_dir, exist_ok=True)
+        np.savez(args.calibration_output, **npz_data)
+        print(f'Saved {num_calib_data} calibration samples to {args.calibration_output}')
+        if args.calibration_manifest:
+            manifest_path = os.path.abspath(args.calibration_manifest)
+            os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
+            with open(manifest_path, 'w', encoding='utf-8') as handle:
+                json.dump({
+                    'schema_version': 1,
+                    'dataset_split': args.dataset_split,
+                    'temporal_protocol': args.temporal_protocol,
+                    'shape0': shape0,
+                    'samples': calibration_manifest,
+                }, handle, indent=2, sort_keys=True)
+                handle.write('\n')
+            print(f'Saved calibration manifest to {manifest_path}')
 
 if __name__ == '__main__':
     main()

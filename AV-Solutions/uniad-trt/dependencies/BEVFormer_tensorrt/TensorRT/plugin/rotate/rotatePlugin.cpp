@@ -216,7 +216,6 @@ void RotatePlugin::configurePlugin(const nvinfer1::DynamicPluginTensorDesc *in,
 RotatePluginCreator::RotatePluginCreator() {
   mPluginAttributes.clear();
   mPluginAttributes.emplace_back(nvinfer1::PluginField("interpolation"));
-  mPluginAttributes.emplace_back(nvinfer1::PluginField("center"));
 
   mFC.nbFields = mPluginAttributes.size();
   mFC.fields = mPluginAttributes.data();
@@ -274,7 +273,6 @@ RotatePluginCreator::deserializePlugin(const char *name, const void *serialData,
 RotatePluginCreator2::RotatePluginCreator2() {
   mPluginAttributes.clear();
   mPluginAttributes.emplace_back(nvinfer1::PluginField("interpolation"));
-  mPluginAttributes.emplace_back(nvinfer1::PluginField("center"));
 
   mFC.nbFields = mPluginAttributes.size();
   mFC.fields = mPluginAttributes.data();

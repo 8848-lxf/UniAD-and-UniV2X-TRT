@@ -13,6 +13,7 @@ set(UNIAD_IMG_W 416 CACHE STRING "UniAD padded input image width")
 set(UNIAD_IMAGE_RESIZE_SCALE 0.25 CACHE STRING "Raw nuScenes image resize scale")
 option(UNIAD_USE_LIBJPEG_DECODER "Use libjpeg-compatible decoding for PyTorch/OpenCV parity" ON)
 set(UNIAD_JPEG_ROOT "" CACHE PATH "Conda libjpeg-turbo prefix")
+set(UNIAD_IMAGE_NORM_MODE 0 CACHE STRING "Image normalization mode: 0=tiny RGB/ImageNet, 1=base BGR/std1")
 set(UNIAD_STB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../common/dependencies/stb" CACHE PATH "STB source root")
 set(UNIAD_CUOSD_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../common/dependencies/cuOSD" CACHE PATH "cuOSD source root")
 set(UNIAD_BEVFORMER_TRT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../dependencies/BEVFormer_tensorrt" CACHE PATH "BEVFormer TensorRT source root")
@@ -22,6 +23,7 @@ add_compile_definitions(
   UNIAD_IMG_H=${UNIAD_IMG_H}
   UNIAD_IMG_W=${UNIAD_IMG_W}
   UNIAD_IMAGE_RESIZE_SCALE=${UNIAD_IMAGE_RESIZE_SCALE}
+  UNIAD_IMAGE_NORM_MODE=${UNIAD_IMAGE_NORM_MODE}
 )
 
 if(NOT TENSORRT_PATH)

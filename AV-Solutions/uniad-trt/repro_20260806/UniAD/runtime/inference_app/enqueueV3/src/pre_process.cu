@@ -44,15 +44,22 @@ __global__ void transpose_img_kernel(float * images, float * processed_images, c
     }
 }
 
-__constant__ float mean[3] = {123.675, 116.28, 103.53};
-__constant__ float stddev[3] = {58.395, 57.12, 57.375};
+__constant__ float tiny_rgb_mean[3] = {123.675, 116.28, 103.53};
+__constant__ float tiny_rgb_stddev[3] = {58.395, 57.12, 57.375};
+__constant__ float base_bgr_mean[3] = {103.53, 116.28, 123.675};
 
 __global__ void norm_img_kernel(float* images, float* processed_images, const int width, const int height, const int channels) {
     const int th_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (th_idx < width * height * channels) {
         // the images must be in width*height*channels format (stb format)
         int k = th_idx % channels;
-        processed_images[th_idx] = (images[th_idx] - mean[k]) / stddev[k];
+#if UNIAD_IMAGE_NORM_MODE == 1
+        const int pixel_offset = th_idx - k;
+        const int source_k = channels - 1 - k;
+        processed_images[th_idx] = images[pixel_offset + source_k] - base_bgr_mean[k];
+#else
+        processed_images[th_idx] = (images[th_idx] - tiny_rgb_mean[k]) / tiny_rgb_stddev[k];
+#endif
     }
 }
 

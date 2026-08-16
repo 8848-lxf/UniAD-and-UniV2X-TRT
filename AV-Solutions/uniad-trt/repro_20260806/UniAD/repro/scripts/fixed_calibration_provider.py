@@ -115,6 +115,9 @@ class FixedCalibrationDataProvider:
     def get_next(self):
         return next(self.calibration_data_reader, None)
 
+    def rewind(self):
+        self.calibration_data_reader = iter(self.calibration_data_list)
+
     def get_first(self):
         if not self.calibration_data_list:
             raise ValueError("Calibration data is empty")

@@ -3,10 +3,11 @@
 set -euo pipefail
 
 REPRO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+DEPLOY_ROOT=${UNIAD_DEPLOY_ROOT:-${REPRO_ROOT}/../../UniAD_deploy}
 source "${REPRO_ROOT}/scripts/env.sh"
-cd "${REPRO_ROOT}/UniAD_deploy"
+cd "${DEPLOY_ROOT}"
 
-export PYTHONPATH="${REPRO_ROOT}/UniAD_deploy:${PYTHONPATH:-}"
+export PYTHONPATH="${DEPLOY_ROOT}:${PYTHONPATH:-}"
 BASE_ROOT=${BASE_ROOT:-${REPRO_ROOT}/artifacts/uniad_base_e2e}
 
 exec python tools/process_metadata.py \

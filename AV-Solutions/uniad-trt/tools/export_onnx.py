@@ -537,7 +537,8 @@ def main():
             for node in graph.nodes:
                 if node.op == "Reshape":
                     node.attrs["allowzero"] = 1
-            onnx.save(gs.export_onnx(graph), onnx_file_name[:-4]+'repaired.onnx')
+            repaired_name = onnx_file_name[:-5] + '.repaired.onnx'
+            onnx.save(gs.export_onnx(graph), repaired_name)
     # ########## ONNX Export Ends###############
 
 if __name__ == '__main__':
