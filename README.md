@@ -17,9 +17,19 @@ This repository contains model designs, deployment solutions for state-of-the-ar
    - [StreamPETR TensorRT](./AV-Solutions/streampetr-trt/)
    - [UniAD TensorRT](./AV-Solutions/uniad-trt/)
    - [VAD-TensorRT](./AV-Solutions/vad-trt/)
+   - [UniV2X TensorRT](./AV-Solutions/univ2x-trt/)
+
+## Local unified deployment handoff
+
+For the RTX 4090 continuation of the UniAD, VAD-Tiny, and UniV2X deployment
+chains, use `/home/lixingfeng/UniAD_examine/DL4AGX` as the working root.
+The canonical PDT-timestamped development records are in
+[`AV-Solutions/docs/`](./AV-Solutions/docs/). This local handoff is maintained
+on the `feature/dl4agx-unified-4090` branch of the companion deployment
+repository. Generated engines, ONNX files, checkpoints, calibration arrays,
+datasets, and build directories stay local and are excluded from Git.
    
 - [Hardware-friendly Models](./Models/)
    - [DEST](./Models/DEST/)
    - [ReduceFormer](./Models/ReduceFormer/)
    - [Swin-Free](./Models/SwinFree/)
-
